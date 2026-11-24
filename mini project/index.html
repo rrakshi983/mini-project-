@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eaf7f7">
+  <title>CareFind AI | Nearby healthcare, thoughtfully matched</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --ink: #143247; --muted: #688094; --blue: #2874e8; --blue-dark: #1d5bc0;
+      --teal: #0c9d91; --mint: #e8f7f4; --line: #e4edf1; --paper: #fff;
+      --wash: #f5fafb; --red: #d54d59; --amber: #bd7816; --shadow: 0 16px 42px rgba(34,75,102,.08);
+      --radius: 18px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--wash); font-size: 14px; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .eyebrow { color: var(--teal); font-weight: 750; text-transform: uppercase; letter-spacing: .12em; font-size: 10px; }
+    .small { font-size: 12px; }
+    .auth-screen { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(380px, .82fr); background: white; }
+    .auth-visual { position: relative; overflow: hidden; min-height: 100vh; padding: 52px clamp(32px, 7vw, 100px); color: white; display: flex; flex-direction: column; justify-content: space-between; background: radial-gradient(ellipse at 76% 18%,rgba(59,206,191,.5),transparent 30%),linear-gradient(145deg,#123b64,#176a83 58%,#0d9e91); }
+    .auth-visual:after { content:""; position:absolute; width:600px;height:600px;border:1px solid rgba(255,255,255,.14);border-radius:50%;right:-200px;bottom:-260px;box-shadow:0 0 0 60px rgba(255,255,255,.035),0 0 0 120px rgba(255,255,255,.025); }
+    .brand { display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.03em;font-size:20px;position:relative;z-index:1; }
+    .brand-mark { width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:rgba(255,255,255,.15);font-size:21px; }
+    .visual-copy { max-width:560px; position:relative;z-index:1; padding:60px 0; }
+    .visual-copy h1 { font-size:clamp(38px,5vw,68px);line-height:1.04;letter-spacing:-.055em;margin:18px 0 22px; }
+    .visual-copy p { color:rgba(255,255,255,.78);font-size:16px;line-height:1.75;max-width:480px; }
+    .trust-row { display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,.82);position:relative;z-index:1; }
+    .trust-row span:before { content:"✓";margin-right:8px;color:#75f0d7;font-weight:800; }
+    .auth-panel { display:flex;align-items:center;justify-content:center;padding:40px 24px; }
+    .auth-box { width:min(430px,100%); }
+    .auth-box h2 { font-size:30px;letter-spacing:-.04em;margin:12px 0 8px; }
+    .auth-tabs { display:flex;padding:4px;background:#f1f6f7;border-radius:12px;margin:26px 0 22px; }
+    .auth-tabs button { flex:1;border:0;background:transparent;color:var(--muted);border-radius:9px;padding:11px;font-weight:700; }
+    .auth-tabs button.active { background:#fff;color:var(--ink);box-shadow:0 2px 8px #153d5512; }
+    .field { display:grid;gap:7px;margin:14px 0; }
+    .field label { color:#435f72;font-size:12px;font-weight:700; }
+    .field input,.field select,.field textarea,.input { width:100%;border:1px solid #dfe9ed;background:#fff;border-radius:11px;padding:12px 13px;color:var(--ink);outline:0;transition:border .18s,box-shadow .18s; }
+    .field textarea { resize:vertical;min-height:84px; }
+    .field input:focus,.field select:focus,.field textarea:focus { border-color:#70a5ed;box-shadow:0 0 0 3px #2874e81a; }
+    .password-wrap { display:flex;position:relative; }
+    .password-wrap input { padding-right:55px; }
+    .password-wrap button { position:absolute;right:5px;top:5px;border:0;background:transparent;color:var(--muted);padding:8px; }
+    .btn { border:1px solid transparent;border-radius:11px;padding:11px 15px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .16s,background .16s,box-shadow .16s; }
+    .btn:hover { transform:translateY(-1px); }
+    .btn-primary { color:white;background:linear-gradient(110deg,var(--blue),#4387eb);box-shadow:0 7px 16px #2874e82b; }
+    .btn-primary:hover { background:var(--blue-dark); }
+    .btn-teal { color:#fff;background:var(--teal); }
+    .btn-light { color:#33546a;background:#f0f6f8;border-color:#e4edf1; }
+    .btn-danger { color:#b63845;background:#fff0f1;border-color:#f8d7da; }
+    .btn-quiet { color:var(--blue);background:transparent;padding:7px 9px; }
+    .btn-small { font-size:12px;padding:8px 10px;border-radius:9px; }
+    .btn-block { width:100%;padding:13px; }
+    .alert { padding:13px 15px;border-radius:12px;background:#eef6ff;color:#305f91;border:1px solid #dbeafa;line-height:1.5; }
+    .alert-warning { color:#8d431e;background:#fff5e8;border-color:#fde1bd; }
+    .alert-danger { color:#95353e;background:#fff0f1;border-color:#f6d2d6; }
+    .demo-note { margin-top:19px;border-top:1px solid var(--line);padding-top:15px;line-height:1.6; }
+    .app-shell { display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh; }
+    .sidebar { position:sticky;top:0;height:100vh;padding:23px 15px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:5; }
+    .sidebar .brand { color:var(--ink);padding:0 10px 24px; }
+    .sidebar .brand-mark { background:linear-gradient(135deg,#2676e8,#09a294);color:#fff; }
+    .side-label { margin:17px 11px 8px;color:#9aabb7;font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase; }
+    .nav-list { display:grid;gap:4px; }
+    .nav-item { width:100%;border:0;background:transparent;color:#688094;text-align:left;padding:11px 12px;border-radius:11px;font-size:13px;font-weight:650;display:flex;align-items:center;gap:12px; }
+    .nav-item:hover { background:#f4f8fa;color:var(--ink); }
+    .nav-item.active { background:#edf5ff;color:var(--blue); }
+    .nav-icon { width:20px;text-align:center;font-size:16px; }
+    .sidebar-bottom { margin-top:auto;padding:14px 10px;border-top:1px solid var(--line); }
+    .mini-profile { display:flex;align-items:center;gap:10px;min-width:0; }
+    .avatar { width:37px;height:37px;display:grid;place-items:center;border-radius:12px;background:#e6f4f2;color:#138c83;font-weight:800;flex:none; }
+    .mini-profile strong { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:135px;font-size:12px; }
+    .mini-profile .muted { font-size:11px;margin-top:3px; }
+    .main { min-width:0; }
+    .topbar { height:76px;padding:0 clamp(18px,4vw,48px);background:#ffffffd9;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:4; }
+    .topbar-title { font-weight:800;font-size:15px; }
+    .topbar-actions { display:flex;align-items:center;gap:10px; }
+    .location-chip { color:#2b5b69;background:#eaf7f5;border:1px solid #d8efea;border-radius:99px;padding:9px 13px;max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:650; }
+    .lang-toggle { border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);padding:8px 10px;font-size:12px;font-weight:700; }
+    .content { max-width:1440px;margin:0 auto;padding:clamp(20px,4vw,44px); }
+    .page-head { display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px; }
+    .page-head h1 { font-size:clamp(26px,3vw,34px);letter-spacing:-.045em;margin:7px 0 5px; }
+    .page-head p { color:var(--muted);margin:0;line-height:1.55; }
+    .grid { display:grid;gap:17px; }
+    .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .grid-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .grid-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .card { background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;min-width:0; }
+    .card h2,.card h3 { margin:0 0 9px;letter-spacing:-.025em; }
+    .card h2 { font-size:18px; }
+    .card h3 { font-size:15px; }
+    .card p { line-height:1.6; }
+    .stat-card { display:flex;gap:14px;align-items:center;padding:18px; }
+    .stat-icon { width:45px;height:45px;display:grid;place-items:center;border-radius:14px;background:#edf5ff;color:var(--blue);font-size:20px; }
+    .stat-card:nth-child(2) .stat-icon { background:#e9f8f5;color:#0b9a8f; }
+    .stat-card:nth-child(3) .stat-icon { background:#fff4e8;color:#bd7816; }
+    .stat-card:nth-child(4) .stat-icon { background:#f4efff;color:#8059c8; }
+    .stat-value { font-size:24px;font-weight:850;letter-spacing:-.04em; }
+    .stat-label { color:var(--muted);font-size:11px;margin-top:3px; }
+    .section-title { display:flex;align-items:center;justify-content:space-between;gap:10px;margin:25px 0 12px; }
+    .section-title h2 { font-size:18px;margin:0;letter-spacing:-.03em; }
+    .quick-card { display:flex;align-items:flex-start;gap:13px; }
+    .quick-card .stat-icon { width:40px;height:40px;flex:none;font-size:17px; }
+    .quick-card h3 { margin:2px 0 5px; }
+    .quick-card p { color:var(--muted);font-size:12px;margin:0 0 10px; }
+    .row { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+    .row-between { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+    .stack { display:grid;gap:12px; }
+    .pill { display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:750;background:#f0f5f7;color:#557183; }
+    .pill-blue { background:#edf4ff;color:#316cc2; }
+    .pill-teal { background:#e8f7f3;color:#138679; }
+    .pill-amber { background:#fff4e4;color:#a86812; }
+    .pill-red { background:#fff0f1;color:#b83845; }
+    .sample-tag { color:#8a5a17;background:#fff6e8;border:1px solid #f5dfbd; }
+    .status-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:#b8c2c9; }
+    .status-Available .status-dot { background:#15aa70; }.status-Busy .status-dot { background:#e0ad33; }
+    .status-On-Break .status-dot { background:#3782dd; }.status-Unavailable .status-dot { background:#df5963; }
+    .status-text { font-weight:750;font-size:11px; }
+    .location-panel { display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #dcece9;border-radius:12px;background:#f4fbf9;margin:15px 0; }
+    .location-panel .field { flex:1;margin:0; }
+    .location-panel .field input { padding:10px 12px; }
+    .symptom-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
+    .symptom-option { display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px;color:#496477;font-size:12px;cursor:pointer; }
+    .symptom-option:has(input:checked) { border-color:#78a8e8;background:#f1f7ff;color:#2b63a6; }
+    .symptom-option input { accent-color:var(--blue); }
+    #map { width:100%;height:380px;border-radius:14px;border:1px solid var(--line);z-index:1; }
+    .hospital-card { display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:12px;padding:17px;border:1px solid var(--line);border-radius:15px;background:#fff; }
+    .hospital-card:hover { border-color:#b9d1ef;box-shadow:0 9px 24px #245a8510; }
+    .hospital-image { min-height:92px;border-radius:12px;background:linear-gradient(145deg,#e7f6f3,#edf4ff);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#338c88;text-align:center;overflow:hidden; }
+    .hospital-image img { width:100%;height:100%;min-height:92px;object-fit:cover; }
+    .hospital-image span { font-size:25px; }.hospital-image small { color:#718b97;font-size:9px; }
+    .hospital-card h3 { font-size:16px;line-height:1.35;margin:0 0 6px; }
+    .hospital-meta { display:flex;gap:8px 14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin:9px 0; }
+    .match-meter { display:flex;align-items:center;gap:9px;margin:10px 0; }
+    .meter { height:6px;max-width:150px;flex:1;background:#edf1f3;border-radius:9px;overflow:hidden; }
+    .meter i { display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#14a99b,#4286eb); }
+    .hospital-actions { display:flex;align-items:center;gap:6px;flex-wrap:wrap;grid-column:1/-1;border-top:1px solid #eef2f4;padding-top:12px; }
+    .doctor-card { display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:start;padding:14px;border:1px solid var(--line);border-radius:13px; }
+    .doctor-photo { width:46px;height:46px;border-radius:14px;object-fit:cover;background:#eaf4f5;display:grid;place-items:center;color:#268e8a;font-size:17px;font-weight:800; }
+    .doctor-info h4 { margin:0 0 4px;font-size:13px; }
+    .doctor-info p { margin:3px 0;color:var(--muted);font-size:11px;line-height:1.5; }
+    .doctor-controls { grid-column:1/-1;border-top:1px solid #eef2f4;padding-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+    .doctor-controls select { padding:7px 9px;border-radius:9px;border:1px solid var(--line);color:var(--ink); }
+    .table-wrap { width:100%;overflow:auto; }
+    table { border-collapse:collapse;width:100%;min-width:650px;font-size:12px; }
+    th { color:#8498a5;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em; }
+    th,td { padding:12px 10px;border-bottom:1px solid #edf1f3;vertical-align:middle; }
+    td { color:#486477; }
+    .empty { padding:28px;text-align:center;color:var(--muted);border:1px dashed #dbe6ea;border-radius:13px; }
+    .map-legend { display:flex;gap:18px;flex-wrap:wrap;margin:11px 0;color:var(--muted);font-size:11px; }
+    .toast-host { position:fixed;right:22px;top:88px;z-index:20;display:grid;gap:9px; }
+    .toast { background:#173d53;color:#fff;padding:12px 16px;border-radius:11px;box-shadow:0 8px 25px #153b542b;max-width:340px;animation:slideIn .25s ease;line-height:1.45; }
+    @keyframes slideIn { from { transform:translateY(-8px);opacity:0 } to { transform:none;opacity:1 } }
+    .loading { color:var(--muted);padding:16px 0; }
+    body.large-text { font-size:16px; }
+    body.large-text .small { font-size:14px; }
+    body.high-contrast { --ink:#082739;--muted:#3d5868;--line:#b9c9d1;--wash:#fff;--blue:#1455bd; }
+    .modal-backdrop { position:fixed;inset:0;background:#0b243c80;z-index:30;display:grid;place-items:center;padding:18px; }
+    .modal { max-width:560px;width:100%;max-height:85vh;overflow:auto;background:white;border-radius:20px;padding:23px;box-shadow:0 25px 80px #102e4755; }
+    .modal-close { float:right;border:0;background:#f0f5f6;width:32px;height:32px;border-radius:10px; }
+    .mobile-menu { display:none; }
+    footer { color:#91a2ae;text-align:center;font-size:10px;padding:22px 4px;line-height:1.6; }
+    @media(max-width:1050px) { .grid-4 { grid-template-columns:repeat(2,1fr); }.grid-3 { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:760px) {
+      .auth-screen { grid-template-columns:1fr; }.auth-visual { min-height:280px;padding:25px 25px 20px; }.visual-copy { padding:20px 0 10px; }.visual-copy h1 { font-size:40px;margin:8px 0; }.visual-copy p { font-size:13px;margin:6px 0; }.trust-row { display:none; }.auth-panel { padding:28px 20px 40px; }
+      .app-shell { display:block; }.sidebar { position:fixed;left:-270px;top:0;width:248px;transition:left .2s;box-shadow:var(--shadow); }.sidebar.open { left:0; }.mobile-menu { display:inline-flex; }.topbar { height:64px;padding:0 15px; }.topbar-title { display:none; }.topbar-actions { gap:6px; }.location-chip { max-width:135px;padding:8px;font-size:10px; }.content { padding:22px 15px; }.grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }.page-head { align-items:flex-start;flex-direction:column; }.symptom-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.location-panel { flex-wrap:wrap; }.location-panel .field { flex-basis:100%; }.hospital-card { grid-template-columns:1fr; }.hospital-image { min-height:140px; }.hospital-image img { min-height:140px; }.hospital-actions { grid-column:auto; }.stat-card { padding:14px; }.stat-value { font-size:21px; } #map { height:300px; }
+    }
+    @media(prefers-reduced-motion:reduce) { *,*:before,*:after { scroll-behavior:auto !important;animation-duration:.01ms !important;transition-duration:.01ms !important; } }
+
+    :root { --ink:#163949;--muted:#6d8490;--blue:#2875d8;--blue-dark:#1e62ba;--teal:#079b91;--mint:#e8f7f4; }
+    html { min-height:100%;background:#e7f2f4; }
+    body { min-height:100vh;background:transparent;position:relative;isolation:isolate; }
+    body:before { content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(90deg,rgba(236,248,249,.95) 0%,rgba(235,248,249,.91) 29%,rgba(228,245,247,.71) 47%,rgba(12,48,68,.08) 100%),url("https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=2400&q=88");background-size:cover;background-position:center;background-repeat:no-repeat;transform:scale(1.015); }
+    body:after { content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.23;background-image:radial-gradient(circle at 8% 18%,#fff 0 1px,transparent 2px),radial-gradient(circle at 38% 72%,#fff 0 1px,transparent 2px),radial-gradient(circle at 74% 21%,#fff 0 1px,transparent 2px),radial-gradient(circle at 92% 78%,#fff 0 1px,transparent 2px);background-size:180px 180px,240px 240px,210px 210px,280px 280px; }
+    .auth-screen { position:relative;isolation:isolate;display:block;min-height:100vh;overflow:hidden;background:transparent; }
+    .auth-panel { position:relative;z-index:2;display:flex;align-items:center;justify-content:flex-start;width:min(540px,100%);min-height:100vh;padding:24px 0;margin-left:clamp(24px,8vw,132px); }
+    .auth-box { width:min(100%,470px);max-height:calc(100vh - 40px);overflow:auto;padding:22px 30px 16px;border:1px solid rgba(255,255,255,.78);border-radius:26px;background:rgba(255,255,255,.91);box-shadow:0 28px 90px rgba(24,66,79,.2),0 3px 12px rgba(255,255,255,.6) inset;backdrop-filter:blur(24px) saturate(1.16);-webkit-backdrop-filter:blur(24px) saturate(1.16);animation:authEntrance .7s cubic-bezier(.2,.8,.2,1) both;scrollbar-width:thin;scrollbar-color:#b9d8d8 transparent; }
+    @keyframes authEntrance { from { opacity:0;transform:translateY(17px) scale(.99) } to { opacity:1;transform:translateY(0) scale(1) } }
+    .auth-brand { display:flex;align-items:center;gap:12px;margin:0 0 14px; }
+    .auth-brand .brand-mark { width:48px;height:48px;display:grid;place-items:center;border:1px solid #d5efeb;border-radius:16px;background:linear-gradient(145deg,#e6f8f4,#edf5ff);color:#138d89;box-shadow:0 7px 18px rgba(16,137,135,.12); }
+    .auth-brand .brand-mark svg { width:30px;height:30px; }
+    .brand-copy { display:grid;gap:3px; }
+    .brand-copy strong { color:#173b4b;font-size:20px;letter-spacing:-.045em;line-height:1; }
+    .brand-copy strong i { color:#0a9c92;font-style:normal; }
+    .brand-copy small { color:#7b919b;font-size:10px;font-weight:650;letter-spacing:.025em; }
+    .auth-topline { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px; }
+    .auth-topline .eyebrow { color:#118b83;font-size:9px;letter-spacing:.13em; }
+    .auth-topline .lang-toggle { flex:none;padding:6px 9px;border-radius:9px;background:rgba(255,255,255,.68);font-size:10px; }
+    .auth-box h1 { margin:0;color:#173b4b;font-size:clamp(29px,3vw,34px);line-height:1.12;letter-spacing:-.055em; }
+    .auth-subtitle { margin:6px 0 12px;color:#6b828e;font-size:13px;line-height:1.5; }
+    .role-selector { display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 3px; }
+    .role-choice { position:relative;display:flex;align-items:center;gap:10px;min-width:0;padding:8px 10px;border:1px solid #dce8e9;border-radius:14px;background:rgba(255,255,255,.68);color:#607987;text-align:left;transition:background .2s,border .2s,box-shadow .2s,transform .2s; }
+    .role-choice:hover { transform:translateY(-1px);border-color:#a9d8d4; }
+    .role-choice.active { border-color:#53b9ae;background:linear-gradient(135deg,#effbf8,#f2f8ff);box-shadow:0 0 0 2px rgba(15,159,146,.09),0 8px 18px rgba(23,126,133,.07);color:#157a78; }
+    .role-icon { width:31px;height:31px;flex:none;display:grid;place-items:center;border-radius:11px;background:#eef4f7;color:#718b96;transition:color .2s,background .2s; }
+    .role-icon svg { width:19px;height:19px; }
+    .role-choice.active .role-icon { color:#078f86;background:#dff5f0; }
+    .role-choice strong,.role-choice small { display:block; }
+    .role-choice strong { color:#234756;font-size:11px;font-weight:780;white-space:nowrap; }
+    .role-choice small { margin-top:3px;color:#82959e;font-size:9px;white-space:nowrap; }
+    .role-check { width:17px;height:17px;display:grid;place-items:center;margin-left:auto;border:1px solid #d7e3e5;border-radius:50%;color:transparent;font-size:10px;transition:all .2s; }
+    .role-choice.active .role-check { border-color:#079b91;background:#079b91;color:#fff; }
+    .hospital-role-link { display:block;margin:5px 1px 9px;padding:2px 0;border:0;background:transparent;color:#7a8e98;font-size:10px;text-align:left; }
+    .hospital-role-link span { color:#197db4;font-weight:750; }
+    .hospital-role-link.active span { color:#087f81; }
+    .hospital-role-link:hover span,#forgotPassword:hover,#authSwitchButton:hover { text-decoration:underline; }
+    .auth-box #authError { margin:0 0 12px;font-size:12px; }
+    .auth-box .field { gap:5px;margin:8px 0; }
+    .auth-box .field label { color:#486574;font-size:10px;font-weight:750;letter-spacing:.025em; }
+    .auth-input-wrap { position:relative;display:flex;align-items:center; }
+    .auth-input-wrap>svg { position:absolute;left:13px;width:17px;height:17px;color:#8da2aa;pointer-events:none; }
+    .auth-input-wrap input { width:100%;min-width:0;height:41px;padding:0 42px;border:1px solid #dce7e9;border-radius:12px;background:rgba(255,255,255,.81);color:#193d4c;font-size:12px;outline:0;transition:border .18s,box-shadow .18s,background .18s; }
+    .auth-input-wrap input::placeholder { color:#a5b4ba; }
+    .auth-input-wrap input:focus { border-color:#4bb4aa;background:#fff;box-shadow:0 0 0 3px rgba(16,157,145,.11); }
+    .auth-input-wrap input:user-invalid { border-color:#d97b82; }
+    .password-toggle { position:absolute;right:7px;top:50%;display:grid;place-items:center;width:31px;height:31px;transform:translateY(-50%);border:0;border-radius:9px;background:transparent;color:#718993; }
+    .password-toggle:hover { background:#eff7f7;color:#148e87; }
+    .password-toggle svg { width:17px;height:17px; }
+    .auth-form-meta { display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 1px 9px;color:#8798a0;font-size:9px; }
+    #forgotPassword { padding:3px 0;border:0;background:transparent;color:#187eaa;font-size:10px;font-weight:750; }
+    .auth-submit { min-height:43px;border-radius:12px;background:linear-gradient(105deg,#087e83,#08a494 55%,#28b89c);box-shadow:0 9px 20px rgba(10,145,137,.23);font-size:12px;letter-spacing:.01em; }
+    .auth-submit:hover { background:linear-gradient(105deg,#086f78,#06968d 55%,#1da98f);box-shadow:0 12px 25px rgba(10,145,137,.29);transform:translateY(-2px); }
+    .auth-submit svg { width:17px;height:17px;transition:transform .2s; }
+    .auth-submit:hover svg { transform:translateX(3px); }
+    .auth-switch { display:flex;justify-content:center;align-items:center;gap:5px;margin:10px 0 8px;color:#7b8f98;font-size:10px; }
+    #authSwitchButton { padding:3px;border:0;background:transparent;color:#10877f;font-size:10px;font-weight:800; }
+    .auth-security { display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #e0efed;border-radius:12px;background:rgba(239,249,247,.82); }
+    .security-icon { width:28px;height:28px;flex:none;display:grid;place-items:center;border-radius:9px;background:#ddf2eb;color:#178d79; }
+    .security-icon svg { width:17px;height:17px; }
+    .auth-security strong,.auth-security small { display:block; }
+    .auth-security strong { color:#426454;font-size:10px;font-weight:750; }
+    .auth-security small { margin-top:3px;color:#839a91;font-size:9px; }
+    .demo-note { margin-top:8px;padding-top:7px;border-top:1px solid rgba(216,231,231,.8);font-size:10px; }
+    .demo-note summary { width:max-content;color:#718892;font-weight:700;cursor:pointer; }
+    .demo-note p { margin:9px 0 5px; }
+    .auth-scene-note { position:absolute;right:clamp(28px,7vw,100px);bottom:clamp(30px,7vh,72px);z-index:1;display:flex;align-items:center;gap:9px;padding:11px 15px;border:1px solid rgba(255,255,255,.44);border-radius:99px;background:rgba(238,250,250,.27);box-shadow:0 8px 30px rgba(10,54,67,.12);backdrop-filter:blur(12px);color:#f6ffff;font-size:11px;font-weight:700;letter-spacing:.02em; }
+    .scene-pulse { width:8px;height:8px;border-radius:50%;background:#8ff0cf;box-shadow:0 0 0 5px rgba(143,240,207,.18);animation:pulseGlow 2.4s ease-in-out infinite; }
+    @keyframes pulseGlow { 50% { box-shadow:0 0 0 9px rgba(143,240,207,0); } }
+    .auth-ecg { position:absolute;right:-2%;bottom:16%;z-index:1;width:min(54vw,730px);height:auto;color:rgba(222,255,250,.53);filter:drop-shadow(0 0 7px rgba(111,245,224,.35));animation:ecgFade 5s ease-in-out infinite; }
+    @keyframes ecgFade { 50% { opacity:.48; } }
+    .auth-orbit { position:absolute;z-index:1;display:grid;place-items:center;border:1px solid rgba(255,255,255,.52);border-radius:50%;background:rgba(255,255,255,.24);box-shadow:0 10px 30px rgba(20,66,82,.08);backdrop-filter:blur(8px);color:#f6ffff;animation:floatMedical 7s ease-in-out infinite; }
+    .auth-orbit-one { top:15%;right:19%;width:44px;height:44px;font-size:22px; }
+    .auth-orbit-two { top:27%;right:7%;width:34px;height:34px;font-size:18px;animation-delay:-2.8s; }
+    @keyframes floatMedical { 50% { transform:translateY(-10px) rotate(5deg); } }
+    .app-shell { position:relative;z-index:0;background:rgba(238,247,248,.88);backdrop-filter:blur(8px); }
+    .sidebar { background:rgba(255,255,255,.96);backdrop-filter:blur(18px); }
+    .topbar { background:rgba(255,255,255,.94); }
+    .card,.hospital-card { background:rgba(255,255,255,.97); }
+    #appShell .brand span:last-child { font-size:17px; }
+    @media(max-width:900px) { .auth-panel { margin-left:clamp(22px,5vw,62px); }.auth-ecg { right:-15%;width:60vw; } }
+    @media(max-width:760px) {
+      body:before { background-image:linear-gradient(180deg,rgba(232,246,248,.57),rgba(226,243,245,.76) 38%,rgba(228,244,245,.91) 100%),url("https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=85");background-position:66% center; }
+      .auth-screen { min-height:100svh;display:grid;place-items:center;padding:18px 0;overflow:auto; }
+      .auth-panel { width:100%;min-height:0;margin:0;padding:0 15px;justify-content:center; }
+      .auth-box { width:min(100%,450px);max-height:calc(100svh - 36px);padding:24px 22px 18px;border-radius:22px;background:rgba(255,255,255,.95); }
+      .auth-brand { margin-bottom:18px; }.auth-brand .brand-mark { width:43px;height:43px;border-radius:14px; }.auth-brand .brand-mark svg { width:27px;height:27px; }
+      .brand-copy strong { font-size:18px; }.auth-box h1 { font-size:29px; }
+      .auth-scene-note,.auth-ecg,.auth-orbit { display:none; }
+      .app-shell { background:rgba(244,249,250,.9);backdrop-filter:none; }
+    }
+    @media(max-width:380px) { .auth-box { padding:21px 17px 16px; }.role-selector { gap:6px; }.role-choice { gap:7px;padding:9px 7px; }.role-icon { width:29px;height:29px; }.role-choice strong { font-size:10px; }.role-choice small { font-size:8px; } }
+    @media(prefers-reduced-motion:reduce) { .auth-box,.auth-orbit,.auth-ecg,.scene-pulse { animation:none !important; } }
+  </style>
+</head>
+<body>
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-orbit auth-orbit-one" aria-hidden="true">✚</div>
+    <div class="auth-orbit auth-orbit-two" aria-hidden="true">⌖</div>
+    <svg class="auth-ecg" viewBox="0 0 680 120" fill="none" aria-hidden="true">
+      <path d="M0 64h156l35-1 25-2 23 3 19-1 22-48 24 83 28-54 19 20h60l25-1h244" stroke="currentColor" stroke-width="2"/>
+    </svg>
+    <div class="auth-scene-note"><span class="scene-pulse"></span><span>Care, connected to you</span></div>
+    <div class="auth-panel">
+      <div class="auth-box">
+        <div class="auth-brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none"><path d="M16 27S4.5 20.2 4.5 12.6a6.1 6.1 0 0 1 11.5-2.8 6.1 6.1 0 0 1 11.5 2.8C27.5 20.2 16 27 16 27Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 16h5l2-4 3.2 8 2.1-4h4.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="brand-copy"><strong>CareFind <i>AI</i></strong><small>AI-Powered Healthcare Discovery</small></span>
+        </div>
+        <div class="auth-topline">
+          <span id="authEyebrow" class="eyebrow">YOUR NEXT STEP TO BETTER CARE</span>
+          <button id="authLanguageToggle" class="lang-toggle" type="button" aria-label="Change language">ಕನ್ನಡ</button>
+        </div>
+        <h1 id="authHeading">Welcome Back</h1>
+        <p id="authSub" class="auth-subtitle">Find the right care, closer to you.</p>
+        <div id="roleSelector" class="role-selector" aria-label="Choose account type">
+          <button class="role-choice active" type="button" data-auth-role="patient" aria-pressed="true">
+            <span class="role-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 20v-1.6a6.5 6.5 0 0 1 13 0V20M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+            <span><strong>Patient Login</strong><small>Find care near you</small></span>
+            <span class="role-check" aria-hidden="true">✓</span>
+          </button>
+          <button class="role-choice" type="button" data-auth-role="admin" aria-pressed="false">
+            <span class="role-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 20 6v5.5c0 4.6-3.1 7.7-8 9.5-4.9-1.8-8-4.9-8-9.5V6l8-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m8.8 11.8 2.1 2.1 4.4-4.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span><strong>Admin Login</strong><small>Manage the platform</small></span>
+            <span class="role-check" aria-hidden="true">✓</span>
+          </button>
+        </div>
+        <button id="hospitalRoleLink" class="hospital-role-link" type="button">Hospital staff? <span>Sign in here</span></button>
+        <div id="authError" class="alert alert-danger hidden" role="alert"></div>
+        <form id="authForm" novalidate>
+          <div id="nameField" class="field hidden"><label for="fullName">Full name</label><div class="auth-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 20v-1.4a6.5 6.5 0 0 1 13 0V20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input id="fullName" name="full_name" autocomplete="name" maxlength="100" placeholder="Your full name"></div></div>
+          <div class="field"><label for="email">Email address</label><div class="auth-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="m5 7 7 5.3L19 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><input id="email" name="email" type="email" autocomplete="username" required maxlength="180" placeholder="you@example.com"></div></div>
+          <div id="phoneField" class="field hidden"><label for="phone">Phone number</label><div class="auth-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M7.1 3.8h2.7l1.4 4.1-2 1.6a15 15 0 0 0 5.3 5.3l1.6-2 4.1 1.4v2.7a2 2 0 0 1-2.2 2A15.8 15.8 0 0 1 5 6a2 2 0 0 1 2.1-2.2Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="20" pattern="[+()0-9 .-]{7,20}" placeholder="+1 555 010 2040"></div></div>
+          <div class="field"><label for="password">Password</label><div class="auth-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder="Enter your password"><button id="togglePassword" class="password-toggle" type="button" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg></button></div></div>
+          <div id="confirmField" class="field hidden"><label for="confirmPassword">Confirm password</label><div class="auth-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="m5 12.5 4.2 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><input id="confirmPassword" name="confirm_password" type="password" autocomplete="new-password" maxlength="128" placeholder="Re-enter your password"></div></div>
+          <div id="forgotRow" class="auth-form-meta"><span>Secure access to your care</span><button id="forgotPassword" type="button">Forgot password?</button></div>
+          <button id="authSubmit" class="btn btn-primary btn-block auth-submit" type="submit"><span id="authSubmitLabel">Sign In</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M4.5 12h14m-5.5-5.5L18.5 12 13 17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </form>
+        <div class="auth-switch"><span id="authSwitchText">New to CareFind AI?</span><button id="authSwitchButton" type="button">Create Account</button></div>
+        <div class="auth-security"><span class="security-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 20 6v5.5c0 4.6-3.1 7.7-8 9.5-4.9-1.8-8-4.9-8-9.5V6l8-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m8.8 11.8 2.1 2.1 4.4-4.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong>Your health information stays protected.</strong><small>Encrypted sign-in · Private by design</small></span></div>
+        <details class="demo-note small muted"><summary>Academic demo accounts</summary><p>Patient: patient@example.com · Patient123!<br>Hospital: hospital@example.com · Hospital123!<br>Admin: admin@example.com · Admin123!</p><span>Sample providers are clearly marked. Do not enter real medical or sensitive information.</span></details>
+      </div>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><span class="brand-mark">✚</span><span>CareFind AI</span></div>
+      <div id="roleLabel" class="side-label">Patient workspace</div>
+      <nav id="navList" class="nav-list" aria-label="Main navigation"></nav>
+      <div class="sidebar-bottom">
+        <div class="mini-profile"><div id="userAvatar" class="avatar">A</div><div style="min-width:0"><strong id="userName">Patient</strong><div id="userRole" class="muted">Patient</div></div></div>
+        <button id="logoutBtn" class="btn btn-light btn-small" style="width:100%;margin-top:13px">↪ Sign out</button>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="row"><button id="menuBtn" class="btn btn-light btn-small mobile-menu" aria-label="Open menu">☰</button><span id="topTitle" class="topbar-title">Overview</span></div>
+        <div class="topbar-actions">
+          <span id="locationChip" class="location-chip hidden">⌖ Location not set</span>
+          <button id="languageToggle" class="lang-toggle" type="button" aria-label="Change language">ಕನ್ನಡ</button>
+        </div>
+      </header>
+      <div id="pageContent" class="content"></div>
+      <footer>CareFind AI is an academic information and navigation project, not a medical service. Symptom suggestions are not diagnoses. In an emergency, contact local emergency services. OpenStreetMap community data and public OSRM routing may be incomplete or unavailable.</footer>
+    </main>
+  </div>
+  <div id="toastHost" class="toast-host" aria-live="polite"></div>
+  <div id="modalHost"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+  (() => {
+    "use strict";
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const state = { user:null, csrf:"", page:"overview", location:null, hospitals:[], specialist:"",
+      map:null, markers:null, routeLayer:null, compare:new Set(), language:localStorage.getItem("carepath-language") || "en",
+      updateTimer:null, doctorSince:"", profile:null, hospitalData:null, adminData:null };
+    let authRole="patient";
+    let authRegisterMode=false;
+    const accessibility = {
+      largeText:localStorage.getItem("carepath-large-text")==="true",
+      highContrast:localStorage.getItem("carepath-high-contrast")==="true"
+    };
+    const translations = {
+      en:{overview:"Overview",findCare:"Find care",appointments:"Appointments",health:"My health",feedback:"Feedback",profile:"Hospital profile",doctors:"Doctors",requests:"Appointment requests",verification:"Verification",users:"Accounts",reports:"Reports",dashboard:"Dashboard",patientSpace:"Patient workspace",hospitalSpace:"Hospital workspace",adminSpace:"Admin workspace",welcome:"Welcome back",findTitle:"Find care near you",symptomsTitle:"A little about how you feel",searchCare:"Find recommended care",location:"Your location",signOut:"Sign out",signIn:"Sign in",createAccount:"Create patient account",fullName:"Full name",email:"Email address",password:"Password",createYourAccount:"Create your account",privateAccount:"Your private patient account starts here.",signInPrompt:"Sign in to find care near you.",signInSecurely:"Sign in securely",createAccountAction:"Create account"},
+      kn:{overview:"ಮುನ್ನೋಟ",findCare:"ಆರೈಕೆ ಹುಡುಕಿ",appointments:"ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಳು",health:"ನನ್ನ ಆರೋಗ್ಯ",feedback:"ಪ್ರತಿಕ್ರಿಯೆ",profile:"ಆಸ್ಪತ್ರೆ ಪ್ರೊಫೈಲ್",doctors:"ವೈದ್ಯರು",requests:"ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ವಿನಂತಿಗಳು",verification:"ಪರಿಶೀಲನೆ",users:"ಖಾತೆಗಳು",reports:"ವರದಿಗಳು",dashboard:"ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",patientSpace:"ರೋಗಿ ಕಾರ್ಯಸ್ಥಳ",hospitalSpace:"ಆಸ್ಪತ್ರೆ ಕಾರ್ಯಸ್ಥಳ",adminSpace:"ನಿರ್ವಾಹಕ ಕಾರ್ಯಸ್ಥಳ",welcome:"ಮರಳಿ ಸ್ವಾಗತ",findTitle:"ನಿಮ್ಮ ಹತ್ತಿರ ಆರೈಕೆ ಹುಡುಕಿ",symptomsTitle:"ನಿಮ್ಮ ಆರೋಗ್ಯದ ಬಗ್ಗೆ ತಿಳಿಸಿ",searchCare:"ಶಿಫಾರಸು ಮಾಡಿದ ಆರೈಕೆ ಹುಡುಕಿ",location:"ನಿಮ್ಮ ಸ್ಥಳ",signOut:"ನಿರ್ಗಮಿಸಿ",signIn:"ಸೈನ್ ಇನ್",createAccount:"ರೋಗಿ ಖಾತೆ ತೆರೆಯಿರಿ",fullName:"ಪೂರ್ಣ ಹೆಸರು",email:"ಇಮೇಲ್ ವಿಳಾಸ",password:"ಪಾಸ್‌ವರ್ಡ್",createYourAccount:"ನಿಮ್ಮ ಖಾತೆ ತೆರೆಯಿರಿ",privateAccount:"ನಿಮ್ಮ ಖಾಸಗಿ ರೋಗಿ ಖಾತೆಯನ್ನು ಪ್ರಾರಂಭಿಸಿ.",signInPrompt:"ನಿಮ್ಮ ಹತ್ತಿರದ ಆರೈಕೆಯನ್ನು ಹುಡುಕಲು ಸೈನ್ ಇನ್ ಮಾಡಿ.",signInSecurely:"ಸುರಕ್ಷಿತವಾಗಿ ಸೈನ್ ಇನ್ ಮಾಡಿ",createAccountAction:"ಖಾತೆ ತೆರೆಯಿರಿ"}
+    };
+    const t = key => (translations[state.language] || translations.en)[key] || translations.en[key] || key;
+    function applyAccessibility(){
+      document.body.classList.toggle("large-text",accessibility.largeText);
+      document.body.classList.toggle("high-contrast",accessibility.highContrast);
+    }
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[ch]));
+    const initials = name => String(name || "?").trim().split(/\s+/).slice(0,2).map(p=>p[0] || "").join("").toUpperCase();
+    const statusClass = status => `status-${String(status || "Unavailable").replace(/\s/g,"-")}`;
+    const statusPill = status => `<span class="status-text ${statusClass(status)}"><i class="status-dot"></i>${esc(status || "Unavailable")}</span>`;
+    const formatDate = value => {
+      if(!value)return "—";
+      const match=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const date=match?new Date(Number(match[1]),Number(match[2])-1,Number(match[3])):new Date(value);
+      return date.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+    };
+    const localDateString=()=>{const date=new Date();date.setMinutes(date.getMinutes()-date.getTimezoneOffset());return date.toISOString().slice(0,10);};
+    const api = async (path, options={}) => {
+      const headers = new Headers(options.headers || {});
+      if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type","application/json");
+      if (state.csrf && ["POST","PUT","PATCH","DELETE"].includes((options.method || "GET").toUpperCase())) headers.set("X-CSRF-Token",state.csrf);
+      const response = await fetch(path,{credentials:"same-origin",...options,headers});
+      const data = await response.json().catch(()=>({error:"The server returned an invalid response."}));
+      if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+      return data;
+    };
+    function toast(message) {
+      const el=document.createElement("div");el.className="toast";el.textContent=message;
+      $("#toastHost").append(el);setTimeout(()=>el.remove(),4200);
+    }
+    function setAuthError(message) { const el=$("#authError");el.textContent=message;el.classList.toggle("hidden",!message); }
+    function selectAuthRole(role) {
+      authRole=role;
+      $$("#roleSelector [data-auth-role]").forEach(button=>{
+        const selected=button.dataset.authRole===role;
+        button.classList.toggle("active",selected);button.setAttribute("aria-pressed",String(selected));
+      });
+      $("#hospitalRoleLink").classList.toggle("active",role==="hospital");
+      $("#authHeading").textContent=authRegisterMode?t("createYourAccount"):role==="admin"?"Admin Sign In":role==="hospital"?"Hospital Staff Sign In":t("welcome");
+      $("#authSub").textContent=authRegisterMode?t("privateAccount"):role==="patient"?t("signInPrompt"):"Sign in to your secure workspace.";
+      $("#authEyebrow").textContent=role==="patient"?"YOUR NEXT STEP TO BETTER CARE":role==="admin"?"SECURE PLATFORM ADMINISTRATION":"VERIFIED HOSPITAL WORKSPACE";
+    }
+    function toggleAuth(register) {
+      authRegisterMode=register;
+      $("#nameField").classList.toggle("hidden",!register);
+      $("#phoneField").classList.toggle("hidden",!register);
+      $("#confirmField").classList.toggle("hidden",!register);
+      $("#roleSelector").classList.toggle("hidden",register);
+      $("#hospitalRoleLink").classList.toggle("hidden",register);
+      $("#forgotRow").classList.toggle("hidden",register);
+      $("#fullName").required=register;$("#phone").required=register;$("#confirmPassword").required=register;
+      $("#authSwitchText").textContent=register?"Already have an account?":"New to CareFind AI?";
+      $("#authSwitchButton").textContent=register?"Back to Login":"Create Account";
+      $("#authSubmitLabel").textContent=register?t("createAccountAction"):"Sign In";
+      $("#password").autocomplete=register?"new-password":"current-password";
+      $("#password").minLength=register?10:0;
+      $("#password").placeholder=register?"At least 10 characters":"Enter your password";
+      $("#authLanguageToggle").textContent=state.language==="en"?"ಕನ್ನಡ":"English";
+      $("#fullName").closest(".field").querySelector("label").textContent=t("fullName");
+      $("#email").closest(".field").querySelector("label").textContent=t("email");
+      $("#phone").closest(".field").querySelector("label").textContent="Phone number";
+      $("#password").closest(".field").querySelector("label").textContent=t("password");
+      selectAuthRole(authRole);
+      setAuthError("");
+    }
+    $$("#roleSelector [data-auth-role]").forEach(button=>button.addEventListener("click",()=>selectAuthRole(button.dataset.authRole)));
+    $("#hospitalRoleLink").addEventListener("click",()=>selectAuthRole("hospital"));
+    $("#authSwitchButton").addEventListener("click",()=>toggleAuth(!authRegisterMode));
+    $("#authLanguageToggle").addEventListener("click",()=>{
+      state.language=state.language==="en"?"kn":"en";localStorage.setItem("carepath-language",state.language);
+      toggleAuth(authRegisterMode);
+    });
+    $("#togglePassword").addEventListener("click",()=>{
+      const input=$("#password");input.type=input.type==="password"?"text":"password";
+      const visible=input.type==="text";
+      $("#togglePassword").setAttribute("aria-label",visible?"Hide password":"Show password");
+      $("#togglePassword").title=visible?"Hide password":"Show password";
+      $("#togglePassword").setAttribute("aria-pressed",String(visible));
+    });
+    $("#forgotPassword").addEventListener("click",()=>openModal(
+      '<span class="eyebrow">ACCOUNT RECOVERY</span><h2>Password reset</h2><p class="muted">Password reset email is not configured for this academic demo. Please contact your platform administrator to reset your access. For security, never share your password.</p>'
+    ));
+    $("#authForm").addEventListener("submit",async event=>{
+      event.preventDefault();setAuthError("");
+      const register=authRegisterMode,email=$("#email"),password=$("#password");
+      if(!email.validity.valid){setAuthError("Enter a valid email address.");email.focus();return;}
+      const payload={email:email.value.trim(),password:password.value};
+      if(register){
+        const name=$("#fullName").value.trim(),phone=$("#phone");
+        if(name.length<2||name.length>100){setAuthError("Enter your full name (2–100 characters).");$("#fullName").focus();return;}
+        if(!phone.validity.valid||phone.value.replace(/\D/g,"").length<7){setAuthError("Enter a valid phone number.");phone.focus();return;}
+        if(password.value.length<10||password.value.length>128){setAuthError("Password must contain 10–128 characters.");password.focus();return;}
+        if(password.value!==$("#confirmPassword").value){setAuthError("Your passwords do not match.");$("#confirmPassword").focus();return;}
+        payload.full_name=name;payload.phone=phone.value.trim();
+      }else{
+        if(!password.value){setAuthError("Enter your password.");password.focus();return;}
+        payload.expected_role=authRole;
+      }
+      const button=$("#authSubmit");button.disabled=true;$("#authSubmitLabel").textContent=register?"Creating account…":"Signing in…";
+      try{
+        const data=await api(register?"/api/auth/register":"/api/auth/login",{method:"POST",body:JSON.stringify(payload)});
+        state.user=data.user;state.csrf=data.csrf_token;state.page="overview";
+        $("#authScreen").classList.add("hidden");$("#appShell").classList.remove("hidden");
+        mountShell();if(state.user.role==="patient")await requestGps();await navigate("overview");
+      }catch(error){setAuthError(error.message);}
+      finally{button.disabled=false;$("#authSubmitLabel").textContent=register?t("createAccountAction"):"Sign In";}
+    });
+    async function checkSession(){
+      try{const data=await api("/api/me");state.user=data.user;state.csrf=data.csrf_token;
+        $("#authScreen").classList.add("hidden");$("#appShell").classList.remove("hidden");mountShell();if(state.user.role==="patient")await requestGps();await navigate("overview");}
+      catch(_error){/* The signed-out view is the expected initial state. */}
+    }
+    function navItems(){
+      if(state.user.role==="patient")return [["overview","⌂","overview"],["find","⌕","findCare"],["appointments","▦","appointments"],["health","♡","health"],["feedback","✧","feedback"]];
+      if(state.user.role==="hospital")return [["overview","⌂","overview"],["profile","▤","profile"],["doctors","✚","doctors"],["requests","▦","requests"]];
+      return [["overview","⌂","overview"],["verification","✓","verification"],["users","♙","users"],["reports","⚑","reports"]];
+    }
+    function mountShell(){
+      const role=state.user.role, roleKey=role==="patient"?"patientSpace":role==="hospital"?"hospitalSpace":"adminSpace";
+      $("#roleLabel").textContent=t(roleKey);$("#userName").textContent=state.user.full_name;
+      $("#userRole").textContent=role[0].toUpperCase()+role.slice(1);$("#userAvatar").textContent=initials(state.user.full_name);
+      $("#navList").innerHTML=navItems().map(([id,icon,label])=>`<button class="nav-item ${state.page===id?"active":""}" data-page="${id}"><span class="nav-icon">${icon}</span>${esc(t(label))}</button>`).join("");
+      $("#navList").onclick=event=>{const btn=event.target.closest("[data-page]");if(btn)navigate(btn.dataset.page);};
+      $("#logoutBtn").textContent="↪ "+t("signOut");
+      $("#languageToggle").textContent=state.language==="en"?"ಕನ್ನಡ":"English";
+      $("#locationChip").classList.toggle("hidden",role!=="patient");
+      updateLocationChip();
+    }
+    $("#menuBtn").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
+    $("#languageToggle").addEventListener("click",()=>{
+      state.language=state.language==="en"?"kn":"en";localStorage.setItem("carepath-language",state.language);
+      mountShell();navigate(state.page);
+    });
+    $("#logoutBtn").addEventListener("click",async()=>{
+      try{await api("/api/auth/logout",{method:"POST"});}catch(_error){}
+      clearInterval(state.updateTimer);state.user=null;state.csrf="";state.location=null;state.hospitals=[];
+      $("#appShell").classList.add("hidden");$("#authScreen").classList.remove("hidden");$("#sidebar").classList.remove("open");
+      authRole="patient";toggleAuth(false);
+    });
+    function updateLocationChip(){
+      const el=$("#locationChip");if(!el)return;
+      el.textContent=state.location?`⌖ ${state.location.display_name || `${state.location.latitude.toFixed(3)}, ${state.location.longitude.toFixed(3)}`}`:"⌖ Location not set";
+      el.title=state.location?.display_name || "Choose a location";
+      const current=$("#findLocationLabel");
+      if(current)current.textContent=state.location?.display_name || "Not set — choose GPS or search";
+    }
+    async function requestGps(){
+      if(!navigator.geolocation){toast("This browser does not support GPS. Search for your area instead.");return;}
+      toast("Requesting location permission. Your coordinates are sent to OpenStreetMap to look up place names and nearby listings.");
+      navigator.geolocation.getCurrentPosition(async position=>{
+        const {latitude,longitude}=position.coords;
+        try{state.location=await api("/api/location/reverse",{method:"POST",body:JSON.stringify({latitude,longitude})});updateLocationChip();if(state.map)showMap();toast(`Location set: ${state.location.display_name}`);}
+        catch(error){state.location={latitude,longitude,display_name:`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`};updateLocationChip();if(state.map)showMap();toast(error.message);}
+      },error=>{
+        const reason=error.code===1?"Location permission was denied. Search for your city or area to continue.":"Could not read your GPS location. Search for your city or area to continue.";
+        toast(reason);
+      },{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+    }
+    async function chooseLocationFromInput(){
+      const query=$("#locationSearch")?.value.trim();if(!query)return toast("Enter a city or area to search.");
+      try{state.location=await api(`/api/location/search?q=${encodeURIComponent(query)}`);updateLocationChip();toast(`Location set: ${state.location.display_name}`);if(state.map)showMap();}
+      catch(error){toast(error.message);}
+    }
+    const symptomOptions=["child health concern","pregnancy concern","chest pain","difficulty breathing","shortness of breath","severe bleeding","unconscious","seizure","face drooping","suicidal thoughts","fever","cough","sore throat","stomach pain","fatigue","rash","itching","skin changes","headache","dizziness","numbness","joint pain","back pain","bone pain","injury","palpitations"];
+    const kannadaSymptoms={
+      "child health concern":"ಮಕ್ಕಳ ಆರೋಗ್ಯ ಕಾಳಜಿ","pregnancy concern":"ಗರ್ಭಧಾರಣೆಯ ಕಾಳಜಿ",
+      "chest pain":"ಎದೆ ನೋವು","difficulty breathing":"ಉಸಿರಾಟದ ತೊಂದರೆ",
+      "shortness of breath":"ಉಸಿರಾಟದ ಕೊರತೆ","severe bleeding":"ತೀವ್ರ ರಕ್ತಸ್ರಾವ",
+      "unconscious":"ಪ್ರಜ್ಞಾಹೀನತೆ","seizure":"ಸೆಳೆತ","face drooping":"ಮುಖದ ಒಂದು ಭಾಗ ಜೋಲು",
+      "suicidal thoughts":"ಆತ್ಮಹತ್ಯೆಯ ಆಲೋಚನೆಗಳು","fever":"ಜ್ವರ","cough":"ಕೆಮ್ಮು",
+      "sore throat":"ಗಂಟಲು ನೋವು","stomach pain":"ಹೊಟ್ಟೆ ನೋವು","fatigue":"ಆಯಾಸ",
+      "rash":"ಚರ್ಮದ ದದ್ದು","itching":"ತುರಿಕೆ","skin changes":"ಚರ್ಮದ ಬದಲಾವಣೆಗಳು",
+      "headache":"ತಲೆನೋವು","dizziness":"ತಲೆಸುತ್ತು","numbness":"ಮರಗಟ್ಟುವಿಕೆ",
+      "joint pain":"ಕೀಲು ನೋವು","back pain":"ಬೆನ್ನು ನೋವು","bone pain":"ಮೂಳೆ ನೋವು",
+      "injury":"ಗಾಯ","palpitations":"ಹೃದಯ ಬಡಿತದ ಅಸಾಮಾನ್ಯತೆ"
+    };
+    const symptomLabel=s=>state.language==="kn"?(kannadaSymptoms[s]||s):s.replace(/\b\w/g,x=>x.toUpperCase());
+    function pageHeader(eyebrow,title,subtitle,action=""){return `<div class="page-head"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${action}</div>`;}
+    function stat(icon,value,label){return `<article class="card stat-card"><div class="stat-icon">${icon}</div><div><div class="stat-value">${esc(value)}</div><div class="stat-label">${esc(label)}</div></div></article>`;}
+    async function navigate(page){
+      clearInterval(state.updateTimer);state.page=page;$("#sidebar").classList.remove("open");
+      $("#topTitle").textContent=(navItems().find(item=>item[0]===page)||[])[2]?t(navItems().find(item=>item[0]===page)[2]):"CareFind AI";
+      $$("#navList .nav-item").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
+      const content=$("#pageContent");content.innerHTML=`<div class="loading">Loading your workspace…</div>`;
+      try{
+        if(state.user.role==="patient"){
+          if(page==="overview")await renderPatientOverview(content);
+          else if(page==="find")renderFindPage(content);
+          else if(page==="appointments")await renderPatientAppointments(content);
+          else if(page==="health")await renderHealth(content);
+          else if(page==="feedback")renderFeedback(content);
+          else await renderPatientOverview(content);
+          if(page==="find")startDoctorPolling();
+        }else if(state.user.role==="hospital"){
+          state.hospitalData=await api("/api/hospital/dashboard");
+          if(page==="overview")renderHospitalOverview(content);
+          else if(page==="profile")renderHospitalProfile(content);
+          else if(page==="doctors")renderHospitalDoctors(content);
+          else if(page==="requests")renderHospitalRequests(content);
+          else renderHospitalOverview(content);
+          startHospitalPolling();
+        }else{
+          state.adminData=await api("/api/admin/dashboard");
+          if(page==="overview")renderAdminOverview(content);
+          else if(page==="verification")renderAdminVerification(content);
+          else if(page==="users")renderAdminUsers(content);
+          else if(page==="reports")renderAdminReports(content);
+          else renderAdminOverview(content);
+        }
+      }catch(error){content.innerHTML=`<div class="alert alert-danger">${esc(error.message)}</div>`;}
+    }
+    async function renderPatientOverview(root){
+      const appointments=await api("/api/appointments"),profile=await api("/api/profile");
+      state.profile=profile;const upcoming=appointments.appointments.filter(a=>["pending","accepted","rescheduled"].includes(a.status)&&a.appointment_date>=localDateString());
+      root.innerHTML=pageHeader("YOUR CARE, IN ONE PLACE",`${t("welcome")}, ${state.user.full_name.split(" ")[0]}`, "A calm, clear overview of your healthcare journey.",
+        `<button class="btn btn-primary" data-go="find">⌕ Find care nearby</button>`)
+        +`<div class="grid grid-4">${stat("▦",upcoming.length,"Upcoming appointments")}${stat("♡",profile.favourites.length,"Saved hospitals")}${stat("♧",profile.history.length,"Health records")}${stat("⌖",state.location?"Set":"Not set","Current location")}</div>
+        <div class="section-title"><h2>Start with what you need</h2></div>
+        <div class="grid grid-3">
+          <article class="card quick-card"><span class="stat-icon">⌕</span><div><h3>Find nearby care</h3><p>Share symptoms to get transparent specialist suggestions and local listings.</p><button class="btn btn-primary btn-small" data-go="find">Explore care →</button></div></article>
+          <article class="card quick-card"><span class="stat-icon">▦</span><div><h3>Manage appointments</h3><p>Review appointment requests and follow their status.</p><button class="btn btn-light btn-small" data-go="appointments">View appointments →</button></div></article>
+          <article class="card quick-card"><span class="stat-icon">♡</span><div><h3>Your health records</h3><p>Keep personal notes, allergies and prescription files together.</p><button class="btn btn-light btn-small" data-go="health">Open my health →</button></div></article>
+        </div>
+        <div class="section-title"><h2>Coming up</h2><button class="btn btn-quiet btn-small" data-go="appointments">View all</button></div>
+        <div class="card">${upcoming.length?`<div class="stack">${upcoming.slice(0,3).map(appointmentCard).join("")}</div>`:`<div class="empty">No upcoming appointments. When a hospital responds to your request, it will appear here.</div>`}</div>
+        <div class="section-title"><h2>Location & privacy</h2></div>
+        <div class="card"><div class="location-panel"><div class="field"><label for="locationSearch">Search by city or area</label><input id="locationSearch" placeholder="e.g. Bengaluru, Indiranagar"></div><button id="locationSearchBtn" class="btn btn-light">Search location</button><button id="gpsBtn" class="btn btn-teal">⌖ Use my GPS</button></div>
+        <p class="small muted">GPS is optional. If you choose it, coordinates are sent to OpenStreetMap for reverse geocoding and nearby listings. OpenStreetMap data may be incomplete. You can search manually or change location at any time.</p></div>`;
+      bindPageActions(root);bindLocationActions(root);
+    }
+    function appointmentCard(a){
+      return `<div class="row-between" style="padding:10px 0;border-bottom:1px solid #edf1f3"><div><strong>${esc(a.doctor_name)}</strong><div class="small muted">${esc(a.hospital_name)} · ${formatDate(a.appointment_date)} at ${esc(a.appointment_time)}</div></div><span class="pill ${a.status==="accepted"?"pill-teal":a.status==="rejected"?"pill-red":"pill-amber"}">${esc(a.status)}</span></div>`;
+    }
+    function renderFindPage(root){
+      root.innerHTML=pageHeader("PERSONALISED CARE DISCOVERY",t("findTitle"),"A symptom-based starting point—not a diagnosis. If you may be in immediate danger, contact emergency services.")
+        +`<div class="grid grid-2"><section class="card"><span class="eyebrow">STEP 1 · LOCATION</span><h2 style="margin-top:8px">${t("location")}</h2><div class="location-panel"><div class="field"><label for="locationSearch">City or area</label><input id="locationSearch" placeholder="Search a place"></div><button id="locationSearchBtn" class="btn btn-light btn-small">Search</button><button id="gpsBtn" class="btn btn-teal btn-small">⌖ GPS</button></div><div class="small muted">Current: <strong id="findLocationLabel">${esc(state.location?.display_name||"Not set — choose GPS or search")}</strong></div><p class="small muted">Location is only used for nearby discovery and route links. It is not stored in your profile.</p></section>
+        <section class="card"><span class="eyebrow">STEP 2 · SYMPTOMS</span><h2 style="margin-top:8px">${t("symptomsTitle")}</h2><p class="small muted">Select any that apply. You can also skip this and search a location without symptom matching.</p>
+        <form id="symptomForm"><div class="symptom-grid">${symptomOptions.map(s=>`<label class="symptom-option"><input type="checkbox" name="symptoms" value="${esc(s)}"><span>${esc(symptomLabel(s))}</span></label>`).join("")}</div>
+        <div class="grid grid-2" style="margin-top:12px"><div class="field"><label for="duration">Duration (days)</label><input id="duration" type="number" min="1" max="3650" value="2" required></div><div class="field"><label for="severity">Severity (1 mild – 5 severe): <span id="severityValue">3</span></label><input id="severity" type="range" min="1" max="5" value="3"></div></div>
+        <button class="btn btn-primary btn-block" type="submit">${t("searchCare")} →</button></form></section></div>
+        <div class="row" style="margin-top:13px"><button id="browseNearbyBtn" class="btn btn-light">Browse nearby without sharing symptoms</button><span class="small muted">This skips specialist matching.</span></div>
+        <div id="emergencyNotice"></div><div id="recommendationIntro"></div>
+        <div class="section-title"><h2>Nearby care & map</h2><span class="small muted">Discovery via OpenStreetMap · ratings shown only when verified</span></div>
+        <div class="card"><div id="map" role="application" aria-label="Map of your location and nearby hospitals"></div><div class="map-legend"><span>● Your selected location</span><span>● Hospital or clinic listing</span><span>Road route only when returned by OSRM</span></div></div>
+        <div class="row" style="margin-top:14px"><div class="field" style="flex:1;min-width:220px;margin:0"><label for="facilityFilter">Filter nearby facilities</label><input id="facilityFilter" type="search" placeholder="Search hospital, area or specialty"></div><label class="row small"><input id="emergencyFilter" type="checkbox"> Emergency services listed</label></div>
+        <div id="hospitalResults" class="stack" style="margin-top:14px"><div class="empty">Choose a location and share symptoms to find nearby listings. No locations or routes are fabricated.</div></div>
+        <div id="compareArea"></div><div id="doctorArea"></div>`;
+      bindLocationActions(root);initMap();
+      $("#severity").addEventListener("input",e=>$("#severityValue").textContent=e.target.value);
+      $("#symptomForm").addEventListener("submit",submitSymptoms);
+      $("#browseNearbyBtn").addEventListener("click",browseNearby);
+      $("#facilityFilter").addEventListener("input",renderHospitals);
+      $("#emergencyFilter").addEventListener("change",renderHospitals);
+      if(state.hospitals.length){renderHospitals();}
+    }
+    function bindLocationActions(root){
+      $("#locationSearchBtn",root)?.addEventListener("click",chooseLocationFromInput);
+      $("#locationSearch",root)?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();chooseLocationFromInput();}});
+      $("#gpsBtn",root)?.addEventListener("click",requestGps);
+    }
+    async function submitSymptoms(event){
+      event.preventDefault();
+      if(!state.location){toast("Choose a location before searching nearby care.");return;}
+      const symptoms=$$('input[name="symptoms"]:checked',event.currentTarget).map(input=>input.value);
+      if(!symptoms.length){toast("Select at least one symptom to get a specialist suggestion.");return;}
+      const button=$("button[type=submit]",event.currentTarget);button.disabled=true;button.textContent="Finding nearby care…";
+      try{
+        const data=await api("/api/recommendations",{method:"POST",body:JSON.stringify({
+          symptoms,duration_days:Number($("#duration").value),severity:Number($("#severity").value),
+          latitude:state.location.latitude,longitude:state.location.longitude
+        })});
+        state.hospitals=data.hospitals;state.specialist=data.specialist;state.lastMatch=data;state.compare.clear();
+        $("#emergencyNotice").innerHTML=data.emergency?`<div class="alert alert-danger" style="margin-top:17px"><strong>⚠ Emergency warning</strong><br>${esc(data.emergency_message)}</div>`:"";
+        $("#recommendationIntro").innerHTML=`<div class="card" style="margin-top:17px"><div class="row-between"><div><span class="eyebrow">SUGGESTED SPECIALIST · NOT A DIAGNOSIS</span><h2 style="margin:5px 0">${esc(data.specialist)}</h2><p class="muted" style="margin:0">${esc(data.explanation)}</p></div><span class="pill pill-blue">Explainable match</span></div><p class="small muted">${esc(data.score_explanation)}</p>${data.warning?`<div class="alert">${esc(data.warning)}</div>`:""}</div>`;
+        renderHospitals();showMap();
+        if(!state.hospitals.length)$("#hospitalResults").innerHTML='<div class="empty">No hospital or clinic listings were found within 15 km. Check the map location or try another area. This does not mean care is unavailable.</div>';
+      }catch(error){toast(error.message);}
+      finally{button.disabled=false;button.textContent=t("searchCare");}
+    }
+    async function browseNearby(event){
+      if(!state.location){toast("Choose a location before browsing nearby listings.");return;}
+      const button=event.currentTarget;button.disabled=true;button.textContent="Loading nearby listings…";
+      try{
+        const data=await api(`/api/hospitals/nearby?latitude=${state.location.latitude}&longitude=${state.location.longitude}`);
+        state.hospitals=data.hospitals;state.specialist="";state.compare.clear();
+        $("#emergencyNotice").innerHTML="";
+        $("#recommendationIntro").innerHTML=`<div class="card" style="margin-top:17px"><span class="eyebrow">NEARBY LISTINGS · NO SYMPTOMS SHARED</span><p>${esc(data.explanation)}</p><p class="small muted">${esc(data.score_explanation)}</p>${data.warning?`<div class="alert">${esc(data.warning)}</div>`:""}</div>`;
+        renderHospitals();showMap();
+        if(!state.hospitals.length)$("#hospitalResults").innerHTML='<div class="empty">No hospital or clinic listings were found within 15 km. Check the map location or try another area.</div>';
+      }catch(error){toast(error.message);}
+      finally{button.disabled=false;button.textContent="Browse nearby without sharing symptoms";}
+    }
+    function initMap(){
+      if(!window.L){$("#map").innerHTML='<div class="empty">Map tiles are unavailable. Use the hospital links and addresses below.</div>';return;}
+      if(state.map){state.map.remove();state.map=null;state.markers=null;state.routeLayer=null;}
+      state.map=L.map("map",{scrollWheelZoom:false}).setView([state.location?.latitude||20,state.location?.longitude||0],state.location?12:3);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(state.map);
+      state.markers=L.layerGroup().addTo(state.map);setTimeout(()=>state.map.invalidateSize(),120);
+      if(state.location)showMap();
+    }
+    function showMap(){
+      if(!state.map||!state.markers||!state.location)return;
+      state.markers.clearLayers();if(state.routeLayer){state.map.removeLayer(state.routeLayer);state.routeLayer=null;}
+      const bounds=[];
+      const you=L.marker([state.location.latitude,state.location.longitude]).bindPopup("<strong>Your selected location</strong>").addTo(state.markers);
+      bounds.push([state.location.latitude,state.location.longitude]);
+      state.hospitals.forEach(h=>{
+        if(h.latitude==null||h.longitude==null)return;
+        const marker=L.marker([h.latitude,h.longitude]).bindPopup(`<strong>${esc(h.name)}</strong><br>${esc(h.address)}<br>${esc(String(h.distance_km??""))} km straight-line distance`);
+        marker.addTo(state.markers);bounds.push([h.latitude,h.longitude]);
+      });
+      if(bounds.length>1)state.map.fitBounds(bounds,{padding:[22,22],maxZoom:13});else state.map.setView([state.location.latitude,state.location.longitude],13);
+      setTimeout(()=>state.map.invalidateSize(),120);
+    }
+    function availableDoctorCount(h){return (h.doctors||[]).filter(d=>d.availability==="Available").length;}
+    function renderHospitals(){
+      const results=$("#hospitalResults");if(!results)return;
+      if(!state.hospitals.length){results.innerHTML='<div class="empty">No nearby listings found.</div>';return;}
+      const query=($("#facilityFilter")?.value||"").trim().toLowerCase();
+      const emergencyOnly=$("#emergencyFilter")?.checked||false;
+      const matching=state.hospitals.filter(h=>{
+        const searchable=[h.name,h.address,h.area,h.city,...(h.specialties||[])].join(" ").toLowerCase();
+        return (!query||searchable.includes(query))&&(!emergencyOnly||h.emergency_services);
+      });
+      if(!matching.length){results.innerHTML='<div class="empty">No facilities match these filters. Clear the search or emergency filter.</div>';renderComparison();return;}
+      results.innerHTML=matching.map(h=>{
+        const id=String(h.id),sample=h.is_sample?'<span class="pill sample-tag">Academic sample only · not a real provider</span>':"";
+        const topRanked=state.hospitals[0]?.id===h.id;
+        const image=h.photo_url?`<img class="hospital-photo" src="${esc(h.photo_url)}" alt="${esc(h.name)}">`:'<span>✚</span><small>Photo not provided</small>';
+        const source=esc(h.source||"Source not provided"), verified=h.verified?'<span class="pill pill-teal">✓ Profile verified</span>':'<span class="pill">Unverified listing</span>';
+        const specialties=(h.specialties||[]).length?esc(h.specialties.join(", ")):"Not listed";
+        const doctors=h.doctors||[];
+        const score=Number(h.match_score)||0;
+        return `<article class="hospital-card" data-hospital="${esc(id)}"><div class="hospital-image">${image}</div><div><div class="row"><h3>${esc(h.name)}</h3>${topRanked&&score?'<span class="pill pill-teal">Top match</span>':""}</div><div class="row" style="margin:4px 0 8px">${verified}${sample}</div><div class="hospital-meta"><span>⌖ ${esc(h.distance_km)} km · straight-line</span><span>☎ ${h.phone?`<a href="tel:${esc(h.phone)}">${esc(h.phone)}</a>`:"Contact not listed"}</span><span>★ ${h.rating?`${esc(h.rating)} (${esc(h.rating_count)} ratings)`:"No verified rating available"}</span></div><p class="small muted" style="margin:4px 0">${esc(h.address||"Address not listed")} · ${esc(source)}</p>
+        <div class="small"><strong>Specialties:</strong> ${specialties} &nbsp; <strong>Emergency:</strong> ${h.emergency_services?"Listed":"Not confirmed"}</div>
+        <div class="match-meter"><strong class="small">${score}/100 match</strong><span class="meter"><i style="width:${Math.max(3,score)}%"></i></span></div>
+        <div class="small muted"><strong>Why:</strong> ${esc((h.recommendation_reasons||[]).join(" · "))}</div>
+        <div class="small muted" style="margin-top:6px"><strong>Facilities:</strong> ${(h.facilities||[]).length?esc(h.facilities.join(", ")):"Not listed"} · <strong>Provider records:</strong> ${doctors.length?`${availableDoctorCount(h)} available · ${doctors.length-availableDoctorCount(h)} other statuses`:"Not listed"}</div>
+        </div><div><label class="pill"><input class="compare-toggle" type="checkbox" data-id="${esc(id)}" ${state.compare.has(id)?"checked":""}> Compare</label></div>
+        <div class="hospital-actions"><button class="btn btn-primary btn-small" data-action="details" data-id="${esc(id)}">Hospital details</button><button class="btn btn-light btn-small" data-action="directions" data-id="${esc(id)}">↗ Get directions</button>${typeof h.id==="number"?`<button class="btn btn-light btn-small" data-action="favorite" data-id="${esc(id)}">♡ Save</button>`:""}${h.osm_url?`<a class="btn btn-quiet btn-small" href="${esc(h.osm_url)}" target="_blank" rel="noopener noreferrer">OpenStreetMap ↗</a>`:""}</div></article>`;
+      }).join("");
+      $$("img.hospital-photo",results).forEach(image=>image.addEventListener("error",()=>{
+        const fallback=document.createElement("div");fallback.className="hospital-image";fallback.innerHTML="<span>✚</span><small>Photo not available</small>";image.replaceWith(fallback);
+      },{once:true}));
+      results.onclick=event=>{
+        const checkbox=event.target.closest(".compare-toggle");
+        if(checkbox){const id=checkbox.dataset.id;if(checkbox.checked){if(state.compare.size>=3){checkbox.checked=false;toast("Compare up to three hospitals at a time.");return;}state.compare.add(id);}else state.compare.delete(id);renderComparison();return;}
+        const button=event.target.closest("[data-action]");if(!button)return;
+        const hospital=state.hospitals.find(h=>String(h.id)===button.dataset.id);if(!hospital)return;
+        if(button.dataset.action==="details")showHospitalDetails(hospital);
+        if(button.dataset.action==="directions")getDirections(hospital);
+        if(button.dataset.action==="favorite")saveHospital(hospital);
+      };
+      renderComparison();
+    }
+    function renderComparison(){
+      const host=$("#compareArea");if(!host)return;
+      const selected=state.hospitals.filter(h=>state.compare.has(String(h.id)));
+      host.innerHTML=selected.length?`<div class="section-title"><h2>Hospital comparison (${selected.length}/3)</h2></div><div class="card table-wrap"><table><thead><tr><th>Hospital</th><th>Distance</th><th>Match</th><th>Verified</th><th>Emergency</th><th>Available providers</th><th>Rating</th></tr></thead><tbody>${selected.map(h=>`<tr><td>${esc(h.name)} ${h.is_sample?"(sample)":""}</td><td>${esc(h.distance_km)} km*</td><td>${esc(h.match_score)}/100</td><td>${h.verified?"Yes":"No"}</td><td>${h.emergency_services?"Listed":"Unknown"}</td><td>${availableDoctorCount(h)}</td><td>${h.rating?esc(h.rating):"Not available"}</td></tr>`).join("")}</tbody></table><p class="small muted">*Straight-line distance, not road distance. Unknown information is not inferred.</p></div>`:"";
+    }
+    function showHospitalDetails(h){
+      const doctors=h.doctors||[];
+      const doctorCards=doctors.length?doctors.map(doctorCard).join(""):'<div class="empty">No doctor information is listed for this location. Call the hospital directly to confirm providers and availability.</div>';
+      openModal(`<span class="eyebrow">HOSPITAL DETAILS</span>${h.photo_url?`<img class="hospital-photo" src="${esc(h.photo_url)}" alt="${esc(h.name)}" style="width:100%;max-height:210px;object-fit:cover;border-radius:13px">`:""}<h2>${esc(h.name)}</h2><p class="muted">${esc(h.address)} · ${esc(h.distance_km)} km straight-line</p><div class="row">${h.verified?'<span class="pill pill-teal">Verified profile</span>':'<span class="pill">Unverified listing</span>'}${h.is_sample?'<span class="pill sample-tag">Academic sample only</span>':""}</div><div class="section-title"><h2>Listed providers</h2></div><div class="stack">${doctorCards}</div><p class="small muted">Availability is displayed only when a registered hospital updates it. OpenStreetMap listings do not include live doctor data.</p>`);
+    }
+    function doctorCard(d,editable=false){
+      const photo=d.photo_url?`<img class="doctor-photo" src="${esc(d.photo_url)}" alt="${esc(d.name)}" loading="lazy">`:`<div class="doctor-photo">${esc(initials(d.name))}</div>`;
+      const bookingAllowed=d.availability==="Available"&&(d.hospital_verified||d.hospital_is_sample);
+      const bookingLabel=!d.hospital_verified&&!d.hospital_is_sample?"Awaiting hospital verification":d.availability==="Available"?"Request appointment":`Not ${d.availability}`;
+      return `<article class="doctor-card" data-doctor="${esc(d.id)}">${photo}<div class="doctor-info"><h4>${esc(d.name)} ${d.is_sample?'<span class="pill sample-tag">Sample</span>':""}</h4><p>${esc(d.qualification||"Qualification not listed")} · ${esc(d.specialty)} · ${esc(d.experience_years)} years</p><p>Languages: ${esc((d.languages||[]).join(", ")||"Not listed")} · Timings: ${esc(d.consultation_timings||"Not listed")}</p><p>${statusPill(d.availability)} <span class="muted">· Updated ${d.availability_updated_at?esc(new Date(d.availability_updated_at).toLocaleString()):"not reported"}</span></p></div>${editable?`<div class="doctor-controls"><label class="small">Availability <select data-status-doctor="${esc(d.id)}">${["Available","Busy","On Break","Unavailable"].map(s=>`<option ${d.availability===s?"selected":""}>${s}</option>`).join("")}</select></label><button class="btn btn-light btn-small" data-edit-doctor="${esc(d.id)}">Edit</button><button class="btn btn-danger btn-small" data-delete-doctor="${esc(d.id)}">Remove</button></div>`:`<div class="doctor-controls"><button class="btn btn-primary btn-small" data-book-doctor="${esc(d.id)}" ${bookingAllowed?"":"disabled"}>${esc(bookingLabel)}</button></div>`}</article>`;
+    }
+    async function getDirections(h){
+      if(!state.location){toast("Set your location first.");return;}
+      const googleUrl=mode=>`https://www.google.com/maps/dir/?api=1&origin=${state.location.latitude},${state.location.longitude}&destination=${h.latitude},${h.longitude}&travelmode=${mode}`;
+      if(state.map&&h.latitude&&h.longitude)state.map.setView([h.latitude,h.longitude],14);
+      try{
+        const route=await api(`/api/route?start_lat=${state.location.latitude}&start_lon=${state.location.longitude}&end_lat=${h.latitude}&end_lon=${h.longitude}`);
+        if(state.routeLayer)state.map.removeLayer(state.routeLayer);
+        state.routeLayer=L.geoJSON(route.geometry,{style:{color:"#2874e8",weight:5,opacity:.8}}).addTo(state.map);
+        state.map.fitBounds(state.routeLayer.getBounds(),{padding:[25,25]});
+        openModal(`<span class="eyebrow">DRIVING DIRECTIONS · OSRM</span><h2>${esc(h.name)}</h2><div class="grid grid-2" style="margin:15px 0"><div class="card"><strong>${esc(route.distance_km)} km</strong><div class="small muted">Road route distance</div></div><div class="card"><strong>${esc(route.duration_minutes)} min</strong><div class="small muted">Estimated driving time</div></div></div><p class="small muted">The public OSRM service supplied this driving route. Walking directions are available through Google Maps; no OSRM walking route is configured.</p><div class="row"><a class="btn btn-primary" href="${esc(googleUrl("driving"))}" target="_blank" rel="noopener noreferrer">Google Maps · driving ↗</a><a class="btn btn-light" href="${esc(googleUrl("walking"))}" target="_blank" rel="noopener noreferrer">Google Maps · walking ↗</a></div>`);
+      }catch(error){
+        if(state.map)state.map.setView([h.latitude,h.longitude],14);
+        openModal(`<span class="eyebrow">DIRECTIONS</span><h2>${esc(h.name)}</h2><div class="alert">${esc(error.message)}</div><p class="small muted">A straight-line map is not a road route. No route has been drawn.</p><div class="row"><a class="btn btn-primary" href="${esc(googleUrl("driving"))}" target="_blank" rel="noopener noreferrer">Google Maps · driving ↗</a><a class="btn btn-light" href="${esc(googleUrl("walking"))}" target="_blank" rel="noopener noreferrer">Google Maps · walking ↗</a></div>`);
+      }
+    }
+    async function saveHospital(h){
+      try{await api(`/api/favourites/${h.id}`,{method:"POST",body:"{}"});toast("Hospital saved to your favourites.");}
+      catch(error){toast(error.message);}
+    }
+    function openModal(html){
+      $("#modalHost").innerHTML=`<div class="modal-backdrop" role="presentation"><section class="modal" role="dialog" aria-modal="true"><button class="modal-close" aria-label="Close dialog">×</button>${html}</section></div>`;
+      $("#modalHost .modal-close").onclick=closeModal;$("#modalHost .modal-backdrop").addEventListener("click",e=>{if(e.target.classList.contains("modal-backdrop"))closeModal();});
+      $$("#modalHost img.doctor-photo").forEach(image=>image.addEventListener("error",()=>{
+        const fallback=document.createElement("div");fallback.className="doctor-photo";fallback.textContent=initials(image.alt);image.replaceWith(fallback);
+      },{once:true}));
+      $$("#modalHost img.hospital-photo").forEach(image=>image.addEventListener("error",()=>{
+        const fallback=document.createElement("div");fallback.className="hospital-image";fallback.textContent="Photo not provided";image.replaceWith(fallback);
+      },{once:true}));
+      $("#modalHost").querySelectorAll("[data-book-doctor]").forEach(b=>b.addEventListener("click",()=>openBooking(b.dataset.bookDoctor)));
+    }
+    function closeModal(){$("#modalHost").innerHTML="";}
+    async function openBooking(doctorId){
+      const doctor=state.hospitals.flatMap(h=>h.doctors||[]).find(d=>String(d.id)===String(doctorId));
+      const hospital=state.hospitals.find(h=>(h.doctors||[]).some(d=>String(d.id)===String(doctorId)));
+      if(!doctor||!hospital)return;
+      const minDate=localDateString();
+      openModal(`<span class="eyebrow">APPOINTMENT REQUEST</span><h2>${esc(doctor.name)}</h2><p class="muted">${esc(hospital.name)} · ${esc(doctor.specialty)}</p><div class="alert">Your request is pending until hospital staff confirm it. A selected time is not a confirmed appointment.</div><form id="bookingForm"><div class="field"><label>Date</label><input id="bookingDate" type="date" min="${minDate}" required></div><div class="field"><label>Time</label><input id="bookingTime" type="time" required></div><div class="field"><label>Optional note</label><textarea id="bookingNote" maxlength="500" placeholder="Share a brief note for the hospital"></textarea></div><button class="btn btn-primary btn-block">Send appointment request</button></form>`);
+      $("#bookingForm").addEventListener("submit",async event=>{
+        event.preventDefault();
+        try{const result=await api("/api/appointments",{method:"POST",body:JSON.stringify({
+          hospital_id:hospital.id,doctor_id:doctor.id,date:$("#bookingDate").value,time:$("#bookingTime").value,note:$("#bookingNote").value
+        })});closeModal();toast(result.message);navigate("appointments");}
+        catch(error){toast(error.message);}
+      });
+    }
+    function bindPageActions(root){
+      root.onclick=event=>{const button=event.target.closest("[data-go]");if(button)navigate(button.dataset.go);};
+    }
+    async function renderPatientAppointments(root){
+      const data=await api("/api/appointments"),items=data.appointments;
+      root.innerHTML=pageHeader("YOUR VISITS",t("appointments"),"Track requests and confirmations from your care providers.")
+        +`<div class="card">${items.length?`<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Hospital</th><th>Date & time</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(a=>`<tr><td><strong>${esc(a.doctor_name)}</strong><br><span class="muted">${esc(a.specialty)}</span></td><td>${esc(a.hospital_name)}<br><span class="muted">${esc(a.hospital_address)}</span></td><td>${formatDate(a.appointment_date)}<br>${esc(a.appointment_time)}</td><td><span class="pill ${a.status==="accepted"?"pill-teal":a.status==="rejected"?"pill-red":"pill-amber"}">${esc(a.status)}</span></td><td>${["pending","accepted","rescheduled"].includes(a.status)?`<button class="btn btn-danger btn-small" data-cancel="${a.id}">Cancel</button>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No appointment requests yet. You can request a time with a provider marked Available.</div>'}</div>
+        <div class="alert" style="margin-top:15px">Appointment requests are not confirmed until the hospital accepts them. Contact the hospital directly if your need is urgent.</div>`;
+      root.onclick=async event=>{const btn=event.target.closest("[data-cancel]");if(!btn)return;try{await api(`/api/appointments/${btn.dataset.cancel}`,{method:"PATCH",body:"{}"});toast("Appointment cancelled.");renderPatientAppointments(root);}catch(error){toast(error.message);}};
+    }
+    async function renderHealth(root){
+      const data=await api("/api/profile");state.profile=data;
+      root.innerHTML=pageHeader("YOUR PRIVATE SPACE",t("health"),"Personal notes and files are visible to your account. Do not upload documents you do not wish to store on this device.")
+        +`<section class="card" style="margin-bottom:16px"><h2>Account profile</h2><form id="patientProfileForm" class="grid grid-2"><div class="field"><label>Full name</label><input name="full_name" required maxlength="100" value="${esc(data.account.full_name)}"></div><div class="field"><label>Email address</label><input name="email" type="email" required value="${esc(data.account.email)}"></div><div class="field"><label>Current password (only required to change password)</label><input name="current_password" type="password" autocomplete="current-password"></div><div class="field"><label>New password (leave blank to keep current)</label><input name="new_password" type="password" minlength="10" maxlength="128" autocomplete="new-password"></div><div><button class="btn btn-light">Update profile</button></div></form></section>
+        <section class="card" style="margin-bottom:16px"><h2>Accessibility preferences</h2><div class="row"><label class="row small"><input id="largeTextToggle" type="checkbox" ${accessibility.largeText?"checked":""}> Larger text</label><label class="row small"><input id="highContrastToggle" type="checkbox" ${accessibility.highContrast?"checked":""}> Higher contrast</label></div><p class="small muted">Preferences are saved in this browser only.</p></section>
+        <div class="grid grid-2"><section class="card"><h2>Add health note</h2><form id="historyForm"><div class="field"><label>Condition or note title</label><input id="historyCondition" required maxlength="120" placeholder="e.g. Seasonal allergies"></div><div class="field"><label>Details</label><textarea id="historyDetails" maxlength="1000" placeholder="Optional context"></textarea></div><div class="field"><label>Allergies</label><input id="historyAllergies" maxlength="500" placeholder="Add known allergies, if any"></div><button class="btn btn-primary">Save note</button></form></section>
+        <section class="card"><h2>Prescription files</h2><p class="small muted">PDF, JPG or PNG · 5 MB maximum. Private to your account.</p><form id="prescriptionForm" class="row"><input id="prescriptionFile" type="file" accept=".pdf,.jpg,.jpeg,.png" required><button class="btn btn-light">Upload</button></form><div class="stack" style="margin-top:14px">${data.prescriptions.length?data.prescriptions.map(p=>`<div class="row-between"><span>${esc(p.original_name)}<br><small class="muted">${formatDate(p.uploaded_at)}</small></span><a class="btn btn-quiet btn-small" href="/api/prescriptions/${p.id}" target="_blank">Download</a></div>`).join(""):'<div class="small muted">No files uploaded.</div>'}</div></section></div>
+        <div class="section-title"><h2>Medical history</h2></div><div class="grid grid-2">${data.history.length?data.history.map(h=>`<article class="card"><h3>${esc(h.condition)}</h3><p class="small muted">${esc(h.details||"No details added.")}</p><p class="small"><strong>Allergies:</strong> ${esc(h.allergies||"Not listed")}</p><span class="small muted">Added ${formatDate(h.created_at)}</span></article>`).join(""):'<div class="empty">No health notes saved.</div>'}</div>
+        <div class="section-title"><h2>Saved hospitals</h2></div><div class="grid grid-2">${data.favourites.length?data.favourites.map(h=>`<article class="card"><div class="row-between"><div><h3>${esc(h.name)}</h3><p class="small muted">${esc(h.address)}</p>${h.is_sample?'<span class="pill sample-tag">Academic sample</span>':""}</div><button class="btn btn-danger btn-small" data-unfavorite="${h.id}">Remove</button></div></article>`).join(""):'<div class="empty">Your saved hospital list is empty.</div>'}</div>
+        <div class="section-title"><h2>Notifications</h2></div><div class="card">${data.notifications.length?data.notifications.map(n=>`<div class="small" style="padding:9px 0;border-bottom:1px solid #edf1f3">${esc(n.message)} <span class="muted">· ${formatDate(n.created_at)}</span></div>`).join(""):'<span class="small muted">No notifications yet.</span>'}</div>`;
+      $("#historyForm").addEventListener("submit",async event=>{event.preventDefault();try{await api("/api/medical-history",{method:"POST",body:JSON.stringify({condition:$("#historyCondition").value,details:$("#historyDetails").value,allergies:$("#historyAllergies").value})});toast("Health note saved.");renderHealth(root);}catch(error){toast(error.message);}});
+      $("#patientProfileForm").addEventListener("submit",async event=>{event.preventDefault();const f=new FormData(event.currentTarget);try{const result=await api("/api/profile",{method:"PUT",body:JSON.stringify(Object.fromEntries(f.entries()))});state.user={...state.user,...result.user};mountShell();toast("Profile updated.");}catch(error){toast(error.message);}});
+      $("#largeTextToggle").addEventListener("change",event=>{accessibility.largeText=event.target.checked;localStorage.setItem("carepath-large-text",String(accessibility.largeText));applyAccessibility();});
+      $("#highContrastToggle").addEventListener("change",event=>{accessibility.highContrast=event.target.checked;localStorage.setItem("carepath-high-contrast",String(accessibility.highContrast));applyAccessibility();});
+      $("#prescriptionForm").addEventListener("submit",async event=>{event.preventDefault();const form=new FormData();form.append("file",$("#prescriptionFile").files[0]);try{await api("/api/prescriptions",{method:"POST",body:form});toast("Prescription uploaded.");renderHealth(root);}catch(error){toast(error.message);}});
+      root.onclick=async event=>{const btn=event.target.closest("[data-unfavorite]");if(!btn)return;try{await api(`/api/favourites/${btn.dataset.unfavorite}`,{method:"DELETE"});toast("Removed from saved hospitals.");renderHealth(root);}catch(error){toast(error.message);}};
+    }
+    function renderFeedback(root){
+      root.innerHTML=pageHeader("HELP US IMPROVE",t("feedback"),"Feedback is labeled as visit-verified only when linked to an accepted appointment.")
+        +`<section class="card" style="max-width:680px"><h2>Share hospital feedback</h2><form id="feedbackForm"><div class="field"><label>Hospital from your recent recommendations (or enter its platform ID)</label><select id="feedbackHospital" required><option value="">Select a platform hospital</option>${state.hospitals.filter(h=>typeof h.id==="number").map(h=>`<option value="${h.id}">${esc(h.name)} ${h.is_sample?"(academic sample)":""}</option>`).join("")}</select></div><div class="field"><label>Rating (1–5)</label><select id="feedbackRating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Okay</option><option value="2">2 — Poor</option><option value="1">1 — Very poor</option></select></div><div class="field"><label>Comments (optional)</label><textarea id="feedbackComment" maxlength="1000"></textarea></div><button class="btn btn-primary">Submit feedback</button></form><div id="feedbackMessage" class="small muted" style="margin-top:12px">Ratings are not shown as verified unless associated with an accepted appointment.</div></section>
+        <div class="section-title"><h2>Report incorrect information</h2></div><section class="card" style="max-width:680px"><form id="reportForm"><div class="field"><label>Hospital (optional)</label><select id="reportHospital"><option value="">General report</option>${state.hospitals.filter(h=>typeof h.id==="number").map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join("")}</select></div><div class="field"><label>What should we correct?</label><textarea id="reportMessage" required minlength="5" maxlength="1000"></textarea></div><button class="btn btn-light">Send report</button></form></section>`;
+      $("#feedbackForm").addEventListener("submit",async event=>{event.preventDefault();try{const result=await api("/api/feedback",{method:"POST",body:JSON.stringify({hospital_id:$("#feedbackHospital").value,rating:$("#feedbackRating").value,comment:$("#feedbackComment").value})});$("#feedbackMessage").textContent=result.verified_visit?"Feedback received; visit was matched to an accepted appointment.":"Feedback received, but it is not visit-verified.";toast("Thank you for your feedback.");}catch(error){toast(error.message);}});
+      $("#reportForm").addEventListener("submit",async event=>{event.preventDefault();try{await api("/api/reports",{method:"POST",body:JSON.stringify({hospital_id:$("#reportHospital").value||null,message:$("#reportMessage").value})});toast("Report sent to the platform team.");$("#reportForm").reset();}catch(error){toast(error.message);}});
+    }
+    function startDoctorPolling(){
+      state.doctorSince=new Date(Date.now()-60000).toISOString();
+      state.updateTimer=setInterval(async()=>{
+        try{
+          const result=await api(`/api/doctors/updates?since=${encodeURIComponent(state.doctorSince)}`);
+          if(result.updates.length){
+            state.doctorSince=result.server_time;
+            const changed=result.updates.map(u=>`${u.name}: ${u.status}`);
+            toast(`Provider status updated: ${changed.join(", ")}`);
+            if(state.hospitals.length){
+              const doctors=await api("/api/doctors");
+              state.hospitals.forEach(h=>{if(typeof h.id==="number")h.doctors=doctors.doctors.filter(d=>d.hospital_id===h.id);});
+              renderHospitals();
+            }
+          }else state.doctorSince=result.server_time;
+        }catch(_error){/* A later polling cycle can recover if the connection returns. */}
+      },15000);
+    }
+    async function renderHospitalOverview(root){
+      const d=state.hospitalData,counts=d.stats.availability;
+      root.innerHTML=pageHeader("HOSPITAL OPERATIONS",d.hospital.name,"Manage your verified profile, provider directory and appointment requests.")
+        +(d.hospital.is_sample?'<div class="alert alert-warning" style="margin-bottom:16px"><strong>Academic sample account:</strong> this hospital and its provider are fictional test records, not a real facility. Availability below starts as sample data.</div>':"")
+        +`<div class="grid grid-4">${stat("✚",d.stats.total_doctors,"Listed providers")}${stat("●",counts.Available||0,"Available")}${stat("◷",counts.Busy||0,"Busy")}${stat("▦",d.stats.today_appointments,"Today's requests")}</div>
+        <div class="section-title"><h2>Availability at a glance</h2></div><div class="grid grid-4">${stat("●",counts["On Break"]||0,"On break")}${stat("●",counts.Unavailable||0,"Unavailable")}${stat("▤",d.appointments.filter(a=>a.status==="pending").length,"Pending requests")}${stat("✓",d.hospital.verified?"Verified":"Pending","Profile status")}</div>
+        <div class="grid grid-2" style="margin-top:18px"><article class="card"><h2>Keep information current</h2><p class="muted">Patient recommendations rely on accurate specialty and staff-updated availability information.</p><button class="btn btn-light" data-go="doctors">Manage provider directory →</button></article><article class="card"><h2>Verification</h2><p class="muted">${d.hospital.verified?"Your profile is verified by an administrator.":"Your hospital profile is awaiting administrator verification."}</p><button class="btn btn-light" data-go="profile">Review hospital profile →</button></article></div>`;
+      bindPageActions(root);
+    }
+    function renderHospitalProfile(root){
+      const h=state.hospitalData.hospital;
+      root.innerHTML=pageHeader("FACILITY INFORMATION",t("profile"),"Keep your location, specialties and contact details accurate. Changes are shared with patient discovery.")
+        +`${h.is_sample?'<div class="alert alert-warning">Sample record. Replace sample details only in a real deployment; do not publish fictitious provider information.</div>':""}<section class="card" style="max-width:850px;margin-top:15px"><form id="hospitalProfileForm" class="grid grid-2">
+        <div class="field"><label>Hospital name</label><input name="name" required maxlength="140" value="${esc(h.name)}"></div><div class="field"><label>Contact phone</label><input name="phone" maxlength="30" value="${esc(h.phone)}"></div>
+        <div class="field"><label>Address</label><input name="address" maxlength="300" value="${esc(h.address)}"></div><div class="field"><label>Area</label><input name="area" maxlength="100" value="${esc(h.area)}"></div>
+        <div class="field"><label>City</label><input name="city" maxlength="100" value="${esc(h.city)}"></div><div class="field"><label>Specialties (comma-separated)</label><input name="specialties" value="${esc((h.specialties||[]).join(", "))}"></div>
+        <div class="field"><label>Facilities (comma-separated)</label><input name="facilities" value="${esc((h.facilities||[]).join(", "))}"></div>
+        <div class="field"><label>Hospital photograph (PNG/JPEG, max 5 MB)</label><input name="hospital_photo" type="file" accept="image/png,image/jpeg"></div>
+        <div class="field"><label>Latitude (optional)</label><input name="latitude" type="number" step="any" value="${h.latitude??""}"></div><div class="field"><label>Longitude (optional)</label><input name="longitude" type="number" step="any" value="${h.longitude??""}"></div>
+        <label class="row small"><input name="emergency_services" type="checkbox" ${h.emergency_services?"checked":""}> Emergency services listed</label>
+        <div><button class="btn btn-primary">Save hospital profile</button><span class="pill ${h.verified?"pill-teal":"pill-amber"}" style="margin-left:8px">${h.verified?"Verified":"Verification pending"}</span></div></form></section>`;
+      $("#hospitalProfileForm").addEventListener("submit",async event=>{
+        event.preventDefault();const f=new FormData(event.currentTarget);
+        const parseList=value=>value.split(",").map(x=>x.trim()).filter(Boolean);
+        try{await api("/api/hospital/profile",{method:"PUT",body:JSON.stringify({
+          name:f.get("name"),phone:f.get("phone"),address:f.get("address"),area:f.get("area"),city:f.get("city"),
+          specialties:parseList(f.get("specialties")||""),facilities:parseList(f.get("facilities")||""),
+          latitude:f.get("latitude")||null,longitude:f.get("longitude")||null,
+          emergency_services:f.has("emergency_services")
+        })});
+          const photo=f.get("hospital_photo");
+          if(photo&&photo.size){const upload=new FormData();upload.append("file",photo);await api("/api/hospital/photo",{method:"POST",body:upload});}
+          toast("Hospital profile updated.");navigate("profile");
+        }catch(error){toast(error.message);}
+      });
+    }
+    function renderHospitalDoctors(root){
+      const docs=state.hospitalData.doctors;
+      root.innerHTML=pageHeader("PROVIDER DIRECTORY",t("doctors"),"Update availability as it changes. Patients see staff-reported status within about 15 seconds.")
+        +`<div class="alert alert-warning" style="margin-bottom:15px">Availability status is controlled by hospital staff. Demo records are clearly identified as academic sample data.</div>
+        <section class="card"><div class="row-between"><div><h2>Your doctors</h2><p class="small muted">Last refreshed ${new Date().toLocaleTimeString()}</p></div><button id="addDoctorBtn" class="btn btn-primary">＋ Add doctor</button></div><div class="grid grid-2" style="margin-top:15px">${docs.length?docs.map(d=>doctorCard(d,true)).join(""):'<div class="empty">No doctor profiles yet.</div>'}</div></section>
+        <div id="doctorFormHost"></div>`;
+      bindDoctorPhotoFallbacks(root);
+      $("#addDoctorBtn").addEventListener("click",()=>doctorForm());
+      root.onchange=async event=>{
+        const select=event.target.closest("[data-status-doctor]");if(!select)return;
+        try{await api(`/api/hospital/doctors/${select.dataset.statusDoctor}`,{method:"PUT",body:JSON.stringify({availability:select.value})});toast(`Availability updated to ${select.value}.`);state.hospitalData=await api("/api/hospital/dashboard");renderHospitalDoctors(root);}
+        catch(error){toast(error.message);}
+      };
+      root.onclick=async event=>{
+        const edit=event.target.closest("[data-edit-doctor]"),del=event.target.closest("[data-delete-doctor]");
+        if(edit){const d=docs.find(x=>String(x.id)===edit.dataset.editDoctor);if(d)doctorForm(d);return;}
+        if(del){if(!confirm("Remove this doctor from the hospital directory?"))return;try{await api(`/api/hospital/doctors/${del.dataset.deleteDoctor}`,{method:"DELETE"});toast("Doctor removed.");navigate("doctors");}catch(error){toast(error.message);}}
+      };
+    }
+    function bindDoctorPhotoFallbacks(root){
+      $$("img.doctor-photo",root).forEach(image=>image.addEventListener("error",()=>{
+        const fallback=document.createElement("div");fallback.className="doctor-photo";fallback.textContent=initials(image.alt);image.replaceWith(fallback);
+      },{once:true}));
+    }
+    function doctorForm(doctor=null){
+      const host=$("#doctorFormHost");if(!host)return;
+      host.innerHTML=`<section id="doctorForm" class="card" style="margin-top:15px"><h2>${doctor?"Edit doctor":"Add a doctor"}</h2><form class="grid grid-2"><div class="field"><label>Full name</label><input name="name" required maxlength="120" value="${esc(doctor?.name||"")}"></div><div class="field"><label>Specialty</label><input name="specialty" required maxlength="80" value="${esc(doctor?.specialty||"")}"></div><div class="field"><label>Qualifications</label><input name="qualification" maxlength="160" value="${esc(doctor?.qualification||"")}"></div><div class="field"><label>Experience (years)</label><input name="experience_years" type="number" min="0" max="80" value="${doctor?.experience_years??0}"></div><div class="field"><label>Languages (comma-separated)</label><input name="languages" value="${esc((doctor?.languages||[]).join(", "))}"></div><div class="field"><label>Consultation timings</label><input name="consultation_timings" maxlength="200" value="${esc(doctor?.consultation_timings||"")}"></div><div class="field"><label>Doctor photograph (PNG/JPEG, max 5 MB)</label><input name="photo" type="file" accept="image/png,image/jpeg"></div><div class="field"><label>Availability</label><select name="availability">${["Available","Busy","On Break","Unavailable"].map(s=>`<option ${doctor?.availability===s?"selected":!doctor&&s==="Unavailable"?"selected":""}>${s}</option>`).join("")}</select></div><div class="row"><button class="btn btn-primary">${doctor?"Save changes":"Add doctor"}</button><button type="button" class="btn btn-light" id="closeDoctorForm">Close</button></div></form></section>`;
+      $("#closeDoctorForm").onclick=()=>host.innerHTML="";
+      $("form",$("#doctorForm")).addEventListener("submit",async event=>{
+        event.preventDefault();const form=new FormData(event.currentTarget),payload={
+          name:form.get("name"),specialty:form.get("specialty"),qualification:form.get("qualification"),
+          experience_years:form.get("experience_years"),languages:form.get("languages").split(",").map(x=>x.trim()).filter(Boolean),
+          consultation_timings:form.get("consultation_timings"),availability:form.get("availability")
+        };
+        try{
+          const result=await api(doctor?`/api/hospital/doctors/${doctor.id}`:"/api/hospital/doctors",{method:doctor?"PUT":"POST",body:JSON.stringify(payload)});
+          const photo=form.get("photo");
+          if(photo&&photo.size){
+            const upload=new FormData();upload.append("file",photo);
+            await api(`/api/hospital/doctors/${doctor?doctor.id:result.id}/photo`,{method:"POST",body:upload});
+          }
+          toast(doctor?"Doctor profile updated.":"Doctor added.");navigate("doctors");
+        }
+        catch(error){toast(error.message);}
+      });
+    }
+    function startHospitalPolling(){
+      state.updateTimer=setInterval(async()=>{
+        if(state.user?.role!=="hospital")return;
+        try{state.hospitalData=await api("/api/hospital/dashboard");if(state.page==="overview")renderHospitalOverview($("#pageContent"));}catch(_error){}
+      },15000);
+    }
+    function renderHospitalRequests(root){
+      const items=state.hospitalData.appointments;
+      root.innerHTML=pageHeader("PATIENT REQUESTS",t("requests"),"Review incoming appointments and update patients when a decision is made.")
+        +`<div class="card">${items.length?`<div class="table-wrap"><table><thead><tr><th>Patient</th><th>Provider</th><th>Requested time</th><th>Status</th><th>Actions</th></tr></thead><tbody>${items.map(a=>`<tr><td>${esc(a.patient_name)}</td><td>${esc(a.doctor_name)}<br><small class="muted">${esc(a.specialty)}</small></td><td>${formatDate(a.appointment_date)} · ${esc(a.appointment_time)}</td><td><span class="pill ${a.status==="accepted"?"pill-teal":a.status==="rejected"?"pill-red":"pill-amber"}">${esc(a.status)}</span></td><td>${a.status==="pending"?`<button class="btn btn-teal btn-small" data-appointment-action="accepted" data-id="${a.id}">Accept</button> <button class="btn btn-danger btn-small" data-appointment-action="rejected" data-id="${a.id}">Reject</button>`:["pending","accepted","rescheduled"].includes(a.status)?`<button class="btn btn-light btn-small" data-appointment-action="rescheduled" data-id="${a.id}">Reschedule</button>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No appointment requests yet.</div>'}</div>`;
+      root.onclick=async event=>{
+        const btn=event.target.closest("[data-appointment-action]");if(!btn)return;
+        const status=btn.dataset.appointmentAction;
+        if(status==="rescheduled"){
+          const item=items.find(a=>String(a.id)===btn.dataset.id);if(!item)return;
+          openModal(`<span class="eyebrow">RESCHEDULE APPOINTMENT</span><h2>${esc(item.patient_name)} · ${esc(item.doctor_name)}</h2><form id="rescheduleForm"><div class="field"><label>New date</label><input id="rescheduleDate" type="date" min="${localDateString()}" value="${esc(item.appointment_date)}" required></div><div class="field"><label>New time</label><input id="rescheduleTime" type="time" value="${esc(item.appointment_time)}" required></div><button class="btn btn-primary btn-block">Confirm reschedule</button></form>`);
+          $("#rescheduleForm").addEventListener("submit",async formEvent=>{
+            formEvent.preventDefault();
+            try{await api(`/api/hospital/appointments/${item.id}`,{method:"PATCH",body:JSON.stringify({status:"rescheduled",date:$("#rescheduleDate").value,time:$("#rescheduleTime").value})});closeModal();toast("Appointment rescheduled.");navigate("requests");}
+            catch(error){toast(error.message);}
+          });
+          return;
+        }
+        try{await api(`/api/hospital/appointments/${btn.dataset.id}`,{method:"PATCH",body:JSON.stringify({status})});toast(`Appointment ${status}.`);navigate("requests");}
+        catch(error){toast(error.message);}
+      };
+    }
+    function renderAdminOverview(root){
+      const s=state.adminData.stats;
+      root.innerHTML=pageHeader("PLATFORM CONTROL",t("dashboard"),"Monitor platform activity, manage access and review hospital verification.")
+        +`<div class="grid grid-3">${stat("♙",s.patients,"Patient accounts")}${stat("▤",s.hospital_accounts,"Hospital accounts")}${stat("✓",s.unverified,"Profiles awaiting verification")}${stat("▦",s.appointments,"Total appointment requests")}${stat("◷",s.pending_appointments,"Pending appointments")}${stat("✓",s.accepted_appointments,"Accepted appointments")}${stat("⚑",s.open_reports,"Open reports")}${stat("✚",s.hospitals,"Registered facilities")}</div>
+        <div class="section-title"><h2>Provider availability monitor</h2><span class="small muted">Hospital-reported status · not independently verified</span></div>
+        <div class="card table-wrap"><table><thead><tr><th>Doctor</th><th>Specialty</th><th>Hospital</th><th>Availability</th><th>Last updated</th></tr></thead><tbody>${state.adminData.doctors.length?state.adminData.doctors.map(d=>`<tr><td>${esc(d.name)} ${d.is_sample?'<span class="pill sample-tag">Sample</span>':""}</td><td>${esc(d.specialty)}</td><td>${esc(d.hospital_name)} ${d.hospital_verified?"":"(unverified)"}</td><td>${statusPill(d.availability)}</td><td>${d.availability_updated_at?esc(new Date(d.availability_updated_at).toLocaleString()):"Not reported"}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">No provider profiles are listed.</td></tr>'}</tbody></table></div>
+        <div class="grid grid-2" style="margin-top:18px"><article class="card"><h2>Platform health</h2><p class="muted">The SQLite database and Flask API are connected. OSM geocoding, discovery and routing require internet access.</p><span class="pill pill-teal">API connected</span></article><article class="card"><h2>Recent platform activity</h2><div class="stack" style="margin-top:10px">${state.adminData.activity.length?state.adminData.activity.slice(0,6).map(a=>`<div class="small">${esc(a.event)} <span class="muted">· ${esc(a.full_name||"System")} · ${formatDate(a.created_at)}</span></div>`).join(""):'<span class="small muted">No activity recorded yet.</span>'}</div></article></div>`;
+    }
+    function renderAdminVerification(root){
+      root.innerHTML=pageHeader("TRUST & SAFETY",t("verification"),"Verify hospital accounts only after an independent review of their credentials.")
+        +`<div class="row" style="margin-bottom:15px"><button id="createHospitalBtn" class="btn btn-primary">＋ Register hospital account</button><span class="small muted">New hospital accounts remain pending until verified.</span></div>
+        <div class="card table-wrap"><table><thead><tr><th>Hospital</th><th>Staff account</th><th>Location</th><th>Source / status</th><th>Action</th></tr></thead><tbody>${state.adminData.hospitals.map(h=>`<tr><td><strong>${esc(h.name)}</strong>${h.is_sample?'<br><span class="pill sample-tag">Academic sample</span>':""}</td><td>${esc(h.owner_name||"No owner")}<br><span class="muted">${esc(h.owner_email||"")}</span></td><td>${esc(h.city||"Not provided")}<br><span class="muted">${esc(h.address||"")}</span></td><td>${esc(h.source)}<br><span class="pill ${h.verified?"pill-teal":"pill-amber"}">${h.verified?"Verified":"Pending"}</span></td><td><button class="btn ${h.verified?"btn-light":"btn-teal"} btn-small" data-verify="${h.id}" data-next="${!h.verified}">${h.verified?"Revoke":"Verify"}</button></td></tr>`).join("")}</tbody></table></div><div id="newHospitalForm"></div>`;
+      $("#createHospitalBtn").onclick=()=>hospitalAccountForm();
+      root.onclick=async event=>{const btn=event.target.closest("[data-verify]");if(!btn)return;try{await api(`/api/admin/hospitals/${btn.dataset.verify}`,{method:"PATCH",body:JSON.stringify({verified:btn.dataset.next==="true"})});toast(btn.dataset.next==="true"?"Hospital verified.":"Verification returned to pending.");navigate("verification");}catch(error){toast(error.message);}};
+    }
+    function hospitalAccountForm(){
+      const host=$("#newHospitalForm");
+      host.innerHTML=`<section class="card" style="margin-top:16px"><h2>Register hospital staff account</h2><form id="newHospitalFormEl" class="grid grid-2"><div class="field"><label>Hospital name</label><input name="name" required></div><div class="field"><label>Staff full name</label><input name="staff_name" required></div><div class="field"><label>Staff email</label><input name="email" type="email" required></div><div class="field"><label>Temporary password (10+ characters)</label><input name="password" type="password" minlength="10" required></div><div class="field"><label>Address</label><input name="address"></div><div class="field"><label>City</label><input name="city"></div><div class="field"><label>Phone</label><input name="phone"></div><div class="field"><label>Latitude (optional)</label><input name="latitude" type="number" step="any"></div><div class="field"><label>Longitude (optional)</label><input name="longitude" type="number" step="any"></div><div><button class="btn btn-primary">Create pending account</button></div></form></section>`;
+      $("#newHospitalFormEl").addEventListener("submit",async event=>{event.preventDefault();const f=new FormData(event.currentTarget),payload=Object.fromEntries(f.entries());try{await api("/api/admin/hospitals",{method:"POST",body:JSON.stringify(payload)});toast("Hospital account created and set to pending.");navigate("verification");}catch(error){toast(error.message);}});
+    }
+    function renderAdminUsers(root){
+      root.innerHTML=pageHeader("ACCESS MANAGEMENT",t("users"),"Disable accounts only when required. Disabled users cannot start a session.")
+        +`<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Access</th><th>Action</th></tr></thead><tbody>${state.adminData.users.map(u=>`<tr><td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td><span class="pill">${esc(u.role)}</span></td><td>${formatDate(u.created_at)}</td><td>${u.active?"Active":"Disabled"}</td><td>${u.role==="admin"?"Protected":`<button class="btn ${u.active?"btn-danger":"btn-teal"} btn-small" data-account="${u.id}" data-next="${!u.active}">${u.active?"Disable":"Enable"}</button>`}</td></tr>`).join("")}</tbody></table></div>`;
+      root.onclick=async event=>{const btn=event.target.closest("[data-account]");if(!btn)return;if(!confirm(`${btn.dataset.next==="true"?"Enable":"Disable"} this account?`))return;try{await api(`/api/admin/users/${btn.dataset.account}`,{method:"PATCH",body:JSON.stringify({active:btn.dataset.next==="true"})});toast("Account access updated.");navigate("users");}catch(error){toast(error.message);}};
+    }
+    function renderAdminReports(root){
+      root.innerHTML=pageHeader("INFORMATION QUALITY",t("reports"),"Review patient-submitted information reports and record resolution.")
+        +`<div class="card table-wrap"><table><thead><tr><th>Reported by</th><th>Hospital</th><th>Details</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead><tbody>${state.adminData.reports.length?state.adminData.reports.map(r=>`<tr><td>${esc(r.patient_name)}</td><td>${esc(r.hospital_name||"General")}</td><td>${esc(r.message)}</td><td>${formatDate(r.created_at)}</td><td>${esc(r.status)}</td><td>${r.status==="open"?`<button class="btn btn-teal btn-small" data-resolve="${r.id}">Mark resolved</button>`:"—"}</td></tr>`).join(""):'<tr><td colspan="6" class="muted">No reports submitted.</td></tr>'}</tbody></table></div>`;
+      root.onclick=async event=>{const btn=event.target.closest("[data-resolve]");if(!btn)return;try{await api(`/api/admin/reports/${btn.dataset.resolve}`,{method:"PATCH",body:JSON.stringify({status:"resolved"})});toast("Report marked resolved.");navigate("reports");}catch(error){toast(error.message);}};
+    }
+    applyAccessibility();
+    toggleAuth(false);
+    checkSession();
+  })();
+  </script>
+</body>
+</html>
